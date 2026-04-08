@@ -1,5 +1,5 @@
 """
-KINETIC_ARCHITECT_v1.0 - Robotic Control Dashboard
+Vision-Based Robotic Arm V1.0 - Robotic Control Dashboard
 PyQt5 Implementation
 """
 
@@ -456,7 +456,7 @@ class TopBar(QFrame):
         layout.setContentsMargins(24, 0, 24, 0)
 
         # Title
-        title = QLabel("KINETIC_ARCHITECT_v1.0")
+        title = QLabel("Vision-Based Robotic Arm V1.0")
         title.setStyleSheet(f"""
             color: {Colors.PRIMARY};
             font-size: 16px;
@@ -1366,7 +1366,7 @@ class KineticArchitectDashboard(QMainWindow):
 # ─────────────────────────────────────────────
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    app.setApplicationName("KINETIC_ARCHITECT_v1.0")
+    app.setApplicationName("Vision-Based Robotic Arm V1.0")
 
     palette = QPalette()
     palette.setColor(QPalette.Window,          QColor(Colors.SURFACE))
