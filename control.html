@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KINETIC_ARCHITECT_v1.0 | MANUAL_MODE</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
+
+<style>
+:root{
+ --bg:#121416;
+ --panel:#1e2022;
+ --panel2:#1a1c1e;
+ --border:#3e494a;
+ --text:#e2e2e5;
+ --muted:#bdc9ca;
+ --primary:#5dd8e2;
+ --danger:#d03035;
+}
+
+*{box-sizing:border-box}
+
+body{
+ margin:0;
+ background:var(--bg);
+ color:var(--text);
+ font-family:Inter;
+ overflow:auto;
+}
+
+.wrapper{padding:24px}
+
+.panel{
+ display:flex;
+ flex-direction:column;
+ gap:24px;
+ background:rgba(51,53,55,0.6);
+ backdrop-filter:blur(20px);
+ padding:24px;
+ border-radius:12px;
+ border:1px solid rgba(62,73,74,0.3);
+}
+
+.header{
+ display:flex;
+ justify-content:space-between;
+ border-bottom:1px solid rgba(62,73,74,0.3);
+ padding-bottom:16px;
+}
+
+.title{font-family:"Space Grotesk";font-size:18px}
+.sub{font-size:10px;color:#ffb3ae;letter-spacing:2px}
+
+.content{display:flex;gap:32px}
+
+.grid{
+ flex:1;
+ display:grid;
+ grid-template-columns:1fr 1fr;
+ grid-template-rows:auto auto auto;
+ gap:24px;
+}
+
+.box{display:flex;flex-direction:column;gap:10px}
+.steering-center{
+    grid-column: 1 / -1;   /* ياخد العرض كله */
+    justify-self: center;  /* يوسّطه */
+    width: 60%;            /* علشان مايبقاش عريض زيادة */
+}
+.row{display:flex;justify-content:space-between;align-items:center}
+
+.label{
+ font-family:"Space Grotesk";
+ font-size:10px;
+ letter-spacing:1.5px;
+ text-transform:uppercase;
+ color:var(--muted);
+}
+
+.value{
+ font-family:"Space Grotesk";
+ font-size:12px;
+ background:rgba(93,216,226,0.1);
+ padding:2px 8px;
+ border-radius:6px;
+ color:var(--primary);
+}
+
+.range{
+ position:relative;
+ height:16px;
+ display:flex;
+ align-items:center;
+}
+
+input[type=range]{
+ width:100%;
+ appearance:none;
+ background:transparent;
+}
+
+input[type=range]::-webkit-slider-runnable-track{
+ height:4px;
+ background:#1e2022;
+ border-radius:2px;
+}
+
+input[type=range]::-webkit-slider-thumb{
+ appearance:none;
+ width:16px;
+ height:16px;
+ border-radius:50%;
+ background:var(--primary);
+ margin-top:-6px;
+ cursor:pointer;
+ box-shadow:0 0 10px rgba(93,216,226,0.5);
+}
+
+.ticks{
+ display:flex;
+ justify-content:space-between;
+ font-size:8px;
+ color:#889394;
+ text-transform:uppercase;
+}
+
+.side{
+ width:90px;
+ display:flex;
+ flex-direction:column;
+ align-items:center;
+ gap:12px;
+ border-left:1px solid rgba(62,73,74,0.3);
+ padding-left:16px;
+}
+
+.vertical-wrap{
+ position:relative;
+ height:240px;
+ display:flex;
+ align-items:center;
+ justify-content:center;
+}
+
+.track{
+ position:absolute;
+ width:6px;
+ height:100%;
+ background:#0c0e10;
+ border-radius:10px;
+}
+
+.vertical{
+ /* writing-mode:bt-lr; */
+ height:100%;
+ z-index:2;
+}
+
+
+input[type=range].vertical {
+    /* -webkit-appearance: slider-vertical; */
+    transform: rotate(-90deg);
+    transform-origin: center;
+    width: 235px;
+}
+.speed-box{
+ background:#333537;
+ padding:10px;
+ border-radius:10px;
+ width:100%;
+ text-align:center;
+ border:1px solid rgba(93,216,226,0.2);
+}
+
+.footer{
+ display:grid;
+ grid-template-columns:1fr 1fr 1fr;
+ gap:16px;
+ border-top:1px solid rgba(62,73,74,0.3);
+ padding-top:16px;
+}
+
+.btn{
+ display:flex;
+ flex-direction:column;
+ align-items:center;
+ gap:6px;
+ padding:14px;
+ background:#333537;
+ border-radius:12px;
+ border:1px solid rgba(62,73,74,0.3);
+ cursor:pointer;
+ transition:0.2s;
+}
+
+.btn:hover{background:rgba(93,216,226,0.1)}
+
+.btn.stop{
+ background:rgba(208,48,53,0.1);
+ border:1px solid rgba(208,48,53,0.3);
+ color:#ffb3ae;
+}
+
+.btn.stop:hover{
+ background:rgba(208, 48, 53, 0.3);
+ border:1px solid rgba(208,48,53,0.3);
+ color:#ffb3ae;
+}
+.material-symbols-outlined{font-size:30px;color:var(--primary)}
+.material-symbols-outlined.stop{font-size:30px;color: rgba(208, 48, 53, 0.785)}
+ html, body {
+                    overflow: auto !important;
+                    height: 100% !important;
+                    margin: 0 !important;
+                    padding: 0 !important;
+                }
+                
+                /* تنسيق السكرول للويب */
+                ::-webkit-scrollbar {
+                    width: 10px !important;
+                    height: 10px !important;
+                }
+                
+                ::-webkit-scrollbar-track {
+                    background: #f0f0f0 !important;
+                    border-radius: 5px !important;
+                }
+                
+                ::-webkit-scrollbar-thumb {
+                    background: #5dd8e2 !important;
+                    border-radius: 5px !important;
+                }
+                
+                ::-webkit-scrollbar-thumb:hover {
+                    background: #007b83 !important;
+                }
+                
+                /* ═══════════════════════════════════════════════ */
+                /* تنسيق السلايدر - جعل الـ thumb دائري */
+                /* ═══════════════════════════════════════════════ */
+                
+                /* WebKit/Blink (Chrome, Edge, Safari) */
+                input[type=range] {
+                    -webkit-appearance: none !important;
+                    appearance: none !important;
+                    height: 6px !important;
+                    background: #ddd !important;
+                    border-radius: 3px !important;
+                    outline: none !important;
+                }
+                
+                input[type=range]::-webkit-slider-thumb {
+                    -webkit-appearance: none !important;
+                    appearance: none !important;
+                    width: 20px !important;
+                    height: 20px !important;
+                    background: #5dd8e2 !important;
+                    border-radius: 50% !important;
+                    cursor: pointer !important;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important;
+                    border: 2px solid white !important;
+                    margin-top: -7px !important;
+                }
+                
+                input[type=range]::-webkit-slider-thumb:hover {
+                    background: #007b83 !important;
+                    transform: scale(1.1) !important;
+                }
+                
+                input[type=range]::-moz-range-thumb {
+                    width: 20px !important;
+                    height: 20px !important;
+                    background: #5dd8e2 !important;
+                    border-radius: 50% !important;
+                    cursor: pointer !important;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important;
+                    border: 2px solid white !important;
+                }
+                
+                input[type=range]::-moz-range-thumb:hover {
+                    background: #007b83 !important;
+                    transform: scale(1.1) !important;
+                }
+                
+                input[type=range]::-webkit-slider-runnable-track {
+                    height: 6px !important;
+                    background: linear-gradient(to right, #5dd8e2, #007b83) !important;
+                    border-radius: 3px !important;
+                }
+                
+                input[type=range]::-moz-range-track {
+                    height: 6px !important;
+                    background: linear-gradient(to right, #5dd8e2, #007b83) !important;
+                    border-radius: 3px !important;
+                }
+                
+                /* للسلايدر العمودي (لو موجود) */
+                input[type=range][orient=vertical] {
+                    writing-mode: bt-lr !important;
+                    -webkit-appearance: slider-vertical !important;
+                    width: 6px !important;
+                    height: 100% !important;
+                }
+                
+                /* إزالة أي overflow: hidden من جميع العناصر */
+                * {
+                    scrollbar-width: thin !important;
+                    scrollbar-color: #5dd8e2 #f0f0f0 !important;
+                }
+                
+                /* Firefox scrollbar */
+                html {
+                    scrollbar-width: thin !important;
+                    scrollbar-color: #5dd8e2 #f0f0f0 !important;
+                }
+            
+         
+</style>
+</head>
+
+<body>
+
+<div class="wrapper">
+<div class="panel">
+
+<div class="header">
+<div>
+<div class="title">Controller</div>
+<div class="sub">OTU</div>
+</div>
+</div>
+
+<div class="content">
+
+<div class="grid">
+
+<!-- 1 -->
+<div class="box">
+<div class="row"><span class="label">Shoulder Elevation</span><span class="value" id="v1">0°</span></div>
+<div class="range"><input type="range" min="0" max="90" value="45" id="s1"></div>
+<div class="ticks"><span>0°</span><span>45°</span><span>90°</span></div>
+</div>
+
+<!-- 2 -->
+<div class="box">
+<div class="row"><span class="label">Elbow Flexion</span><span class="value" id="v2">0°</span></div>
+<div class="range"><input type="range" min="0" max="140" value="0" id="s2"></div>
+<div class="ticks"><span>0°</span><span>70°</span><span>140°</span></div>
+</div>
+
+<!-- 3 -->
+<div class="box">
+<div class="row"><span class="label">Base Rotation</span><span class="value" id="v3">0°</span></div>
+<div class="range"><input type="range" min="0" max="360" value="0" id="s3"></div>
+<div class="ticks"><span>0°</span><span>360°</span></div>
+</div>
+
+<!-- 4 -->
+<div class="box">
+<div class="row"><span class="label">Gripper Actuation</span><span class="value" id="v4">0%</span></div>
+<div class="range"><input type="range" min="0" max="100" value="0" id="s4"></div>
+<div class="ticks"><span>0%</span><span>100%</span></div>
+</div>
+
+<!-- 5 Steering -->
+<div class="box steering-center">
+<div class="row"><span class="label">Car Steering Wheel rotation</span><span class="value" id="v5">0°</span></div>
+<div class="range"><input type="range" min="0" max="360" value="0" id="steer"></div>
+<div class="ticks"><span>0°</span><span>360°</span></div>
+</div>
+
+</div>
+
+<div class="side">
+<div class="label">Car Engine</div>
+<div class="vertical-wrap">
+<div class="track"></div>
+<input type="range" min="0" max="100" value="0" id="engine" class="vertical">
+</div>
+<div class="speed-box">
+<div style="font-size:8px;color:#bdc9ca">Speed</div>
+<div style="font-family:Space Grotesk;font-size:20px;color:#5dd8e2" id="engineVal">0%</div>
+</div>
+</div>
+
+</div>
+
+<div class="footer">
+<div class="btn"><span class="material-symbols-outlined">lock_open</span><span>Unlock_Joints</span></div>
+<div class="btn"><span class="material-symbols-outlined">home_storage</span><span>Home_Position</span></div>
+<div class="btn stop"><span class="material-symbols-outlined stop">dangerous</span><span>STOP</span></div>
+</div>
+
+</div>
+</div>
+
+<script>
+function bind(id,out,unit=""){
+ let s=document.getElementById(id),v=document.getElementById(out);
+ s.oninput=()=>v.innerText=s.value+unit;
+}
+
+bind('s1','v1','°');
+bind('s2','v2','°');
+bind('s3','v3','');
+bind('s4','v4','%');
+
+// Steering center return
+let steer=document.getElementById('steer'),v5=document.getElementById('v5');
+steer.oninput=()=>v5.innerText=steer.value+'°';
+steer.onmouseup=resetSteer;steer.onmouseleave=resetSteer;
+function resetSteer(){
+ let i=setInterval(()=>{
+  if(Math.abs(steer.value)<=1){steer.value=0;v5.innerText='0°';clearInterval(i)}
+  else{steer.value*=0.7;v5.innerText=Math.round(steer.value)+'°'}
+ },10)
+}
+
+// Engine return down
+let engine=document.getElementById('engine'),ev=document.getElementById('engineVal');
+engine.oninput=()=>ev.innerText=engine.value+'%';
+engine.onmouseup=resetEngine;engine.onmouseleave=resetEngine;
+function resetEngine(){
+ let i=setInterval(()=>{
+  if(engine.value<=1){engine.value=0;ev.innerText='0%';clearInterval(i)}
+  else{engine.value*=0.7;ev.innerText=Math.round(engine.value)+'%'}
+ },10)
+}
+
+
+</script>
+
+</body>
+</html>
