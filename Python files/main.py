@@ -1,7 +1,9 @@
 """
 Vision-Based Robotic Arm V1.0 - Robotic Control Dashboard
-PyQt5 Implementation
 """
+# ─────────────────────────────────────────────
+#  ENTRY POINT
+# ─────────────────────────────────────────────
 
 from ui.ui import RenderUI
 

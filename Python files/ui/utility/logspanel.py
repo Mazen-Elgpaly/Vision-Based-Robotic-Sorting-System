@@ -1,0 +1,138 @@
+# ─────────────────────────────────────────────
+#  SYSTEM LOGS PANEL
+# ─────────────────────────────────────────────
+import random
+from datetime import datetime
+from PyQt5.QtCore import QTimer, Qt
+from PyQt5.QtWidgets import QFrame, QVBoxLayout, QHBoxLayout, QWidget, QLabel, QSizePolicy
+from PyQt5.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QLabel, QPushButton, QScrollArea, QFrame, QSizePolicy
+from PyQt5.QtCore import Qt
+from ui.style.colors import Colors
+from ui.utility.logs import LogEntry
+
+
+class SystemLogsPanel(QFrame):
+    def __init__(self):
+        super().__init__()
+        self.setObjectName("card")
+        self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+
+        header = QFrame()
+        header.setFixedHeight(44)
+        header.setStyleSheet(f"""
+            QFrame {{
+                background: rgba(40,42,44,0.5);
+                border-radius: 0px;
+                border-bottom: 1px solid rgba(62,73,74,0.2);
+            }}
+        """)
+        header_layout = QHBoxLayout(header)
+        header_layout.setContentsMargins(16, 0, 16, 0)
+
+        h_icon = QLabel("≡")
+        h_icon.setStyleSheet(f"color: {Colors.PRIMARY}; font-size: 14px; background: transparent;")
+        h_title = QLabel("SYSTEM_LOGS")
+        h_title.setStyleSheet(f"color: {Colors.ON_SURFACE}; font-size: 10px; font-weight: 700; letter-spacing: 3px; background: transparent;")
+        rt_badge = QLabel("REAL-TIME")
+        rt_badge.setStyleSheet(f"""
+            color: {Colors.ON_SURF_VAR};
+            background: {Colors.SURFACE_LOWEST};
+            border-radius: 3px;
+            font-size: 8px;
+            letter-spacing: 1px;
+            padding: 2px 6px;
+        """)
+        header_layout.addWidget(h_icon)
+        header_layout.addSpacing(6)
+        header_layout.addWidget(h_title)
+        header_layout.addStretch()
+        header_layout.addWidget(rt_badge)
+
+        layout.addWidget(header)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        scroll.setStyleSheet("background: transparent; border: none;")
+
+        scroll_widget = QWidget()
+        scroll_widget.setStyleSheet("background: transparent;")
+        self.log_layout = QVBoxLayout(scroll_widget)
+        self.log_layout.setContentsMargins(16, 8, 16, 8)
+        self.log_layout.setSpacing(0)
+        self.log_layout.setAlignment(Qt.AlignTop)
+
+        self.logs = [
+            ("14:22:04.12", "INFO",   Colors.PRIMARY,          "Object detected in safety zone A-4. Re-calculating path trajectory.", 1.0),
+            ("14:22:03.45", "ACTION", Colors.TERTIARY,          "Color identified: #33F4A1. Sorting action completed on sorter 02.", 1.0),
+            ("14:21:58.88", "INFO",   Colors.PRIMARY,          "Calibration synchronized with auxiliary sensor hub.", 0.9),
+            ("14:21:55.30", "INFO",   Colors.PRIMARY,          "Package 4402 successfully routed to Outbound Terminal.", 0.7),
+            ("14:21:42.11", "INFO",   Colors.PRIMARY,          "System initialization sequence finalized. Handshake complete.", 0.5),
+        ]
+        self._render_logs()
+
+        scroll.setWidget(scroll_widget)
+        layout.addWidget(scroll)
+
+        footer = QFrame()
+        footer.setFixedHeight(42)
+        footer.setStyleSheet(f"""
+            QFrame {{
+                background: {Colors.SURFACE_LOWEST};
+                border-top: 1px solid rgba(62,73,74,0.2);
+                border-bottom-left-radius: 12px;
+                border-bottom-right-radius: 12px;
+            }}
+        """)
+        footer_layout = QHBoxLayout(footer)
+        footer_layout.setContentsMargins(16, 0, 16, 0)
+        export_btn = QPushButton("↗  EXPORT SESSION DATA")
+        export_btn.setStyleSheet(f"""
+            QPushButton {{
+                background: transparent;
+                color: rgba(93,216,226,0.6);
+                font-size: 9px;
+                letter-spacing: 2px;
+                border: none;
+                padding: 4px 8px;
+            }}
+            QPushButton:hover {{
+                color: {Colors.PRIMARY};
+            }}
+        """)
+        footer_layout.addWidget(export_btn, 0, Qt.AlignCenter)
+        layout.addWidget(footer)
+
+        self.log_timer = QTimer()
+        self.log_timer.timeout.connect(self._add_random_log)
+        self.log_timer.start(3000)
+        self.scroll_widget = scroll_widget
+
+    def _render_logs(self):
+        while self.log_layout.count():
+            child = self.log_layout.takeAt(0)
+            if child.widget():
+                child.widget().deleteLater()
+        for ts, tag, color, msg, op in self.logs:
+            entry = LogEntry(ts, tag, color, msg, op)
+            self.log_layout.addWidget(entry)
+
+    def _add_random_log(self):
+        msgs = [
+            ("ACTION", Colors.TERTIARY,  "Grip force adjusted: 3.2 N. Object secured."),
+            ("INFO",   Colors.PRIMARY,   "Temperature nominal. Cooling fans at 40%."),
+            ("INFO",   Colors.PRIMARY,   f"Cycle #{random.randint(1000,9999)} completed in {random.randint(300,800)}ms."),
+            ("WARN",   Colors.TERTIARY,  "Proximity sensor threshold approaching limit."),
+            ("INFO",   Colors.PRIMARY,   "Vision model confidence: 98.4%. Object classified."),
+        ]
+        now = datetime.now().strftime("%H:%M:%S.%f")[:11]
+        pick = random.choice(msgs)
+        self.logs.insert(0, (now, pick[0], pick[1], pick[2], 1.0))
+        self.logs = [(ts, t, c, m, max(0.3, o - 0.15)) for ts, t, c, m, o in self.logs]
+        if len(self.logs) > 8:
+            self.logs.pop()
+        self._render_logs()
