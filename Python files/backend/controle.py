@@ -21,14 +21,5 @@ time.sleep(1)
 ws.send("Elbow,60")
 time.sleep(1)
 
-# تسجيل
-ws.send("Record,1")
-time.sleep(2)
-
 ws.send("Base,150")
 time.sleep(1)
-
-ws.send("Record,0")
-
-# تشغيل
-ws.send("Play,1")
