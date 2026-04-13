@@ -1,33 +1,34 @@
-import socketio
+import websocket
 import time
 
-sio = socketio.Client()
+ws = websocket.WebSocket()
+ws.connect("ws://127.0.0.1:5000/RobotArmInput")
 
-@sio.event
-def connect():
-    print("Connected ✅")
+print("Connected ✅")
 
-@sio.on("update")
-def on_update(data):
-    print("Update:", data)
-
-sio.connect("http://127.0.0.1:5000")
+# استقبال (اختياري)
+def receive():
+    try:
+        while True:
+            print("Update:", ws.recv())
+    except:
+        pass
 
 # تحريك السيرفو
-sio.emit("data", "Base,120")
+ws.send("Base,120")
 time.sleep(1)
 
-sio.emit("data", "Elbow,60")
+ws.send("Elbow,60")
 time.sleep(1)
 
 # تسجيل
-sio.emit("data", "Record,1")
+ws.send("Record,1")
 time.sleep(2)
 
-sio.emit("data", "Base,150")
+ws.send("Base,150")
 time.sleep(1)
 
-sio.emit("data", "Record,0")
+ws.send("Record,0")
 
 # تشغيل
-sio.emit("data", "Play,1")
+ws.send("Play,1")

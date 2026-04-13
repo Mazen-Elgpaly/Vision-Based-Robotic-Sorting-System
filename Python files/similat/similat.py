@@ -1,177 +1,172 @@
-from flask import Flask, render_template_string
-from flask_socketio import SocketIO, emit
+from flask import Flask, render_template
+from flask_sock import Sock
 import time
 
 app = Flask(__name__)
-socketio = SocketIO(app, async_mode='threading')
+sock = Sock(app)
 
 # ======================
 # Servo Simulation
 # ======================
-
 class Servo:
-    def __init__(self, name, initial=90):
+    def __init__(self, name):
         self.name = name
-        self.position = initial
+        self.position = 90
 
     def write(self, value):
         self.position = value
+        print(f"{self.name} -> {self.position}")
 
     def read(self):
         return self.position
 
 
-servos = [
+servoPins = [
     Servo("Base"),
     Servo("Shoulder"),
     Servo("Elbow"),
     Servo("Gripper")
 ]
 
-# ======================
-# Recording System
-# ======================
+recordedSteps = []
+recordSteps = False
+playRecordedSteps = False
+previousTime = time.time()
 
-recorded_steps = []
-record_steps = False
-play_steps = False
-previous_time = time.time()
+clients = []  # كل الـ clients المتصلة
 
-# ======================
-# HTML (نفس فكرتك)
-# ======================
-
-HTML = """
-<!DOCTYPE html>
-<html>
-<body style="text-align:center">
-
-<h2>Robot Arm Simulation</h2>
-
-{% for servo in servos %}
-<p>{{servo.name}}</p>
-<input type="range" min="0" max="180" value="90"
-oninput="send('{{servo.name}}', this.value)">
-{% endfor %}
-
-<br><br>
-<button onclick="toggle('Record')">Record</button>
-<button onclick="toggle('Play')">Play</button>
-
-<script src="https://cdn.socket.io/4.0.1/socket.io.min.js"></script>
-<script>
-var socket = io();
-
-function send(key, value){
-    socket.emit("data", key + "," + value);
-}
-
-function toggle(key){
-    socket.emit("data", key + ",1");
-}
-
-socket.on("update", function(msg){
-    console.log(msg);
-});
-</script>
-
-</body>
-</html>
-"""
 
 # ======================
 # Routes
 # ======================
-
 @app.route("/")
-def home():
-    return render_template_string(HTML, servos=servos)
+def index():
+    return render_template("index.html")
+
 
 # ======================
-# WebSocket Logic
+# WebSocket (نفس ESP)
 # ======================
+@sock.route('/RobotArmInput')
+def robot_arm(ws):
+    global recordSteps, playRecordedSteps, previousTime
 
-@socketio.on("data")
-def handle_data(msg):
-    global record_steps, play_steps, previous_time
+    clients.append(ws)
+    print("Client connected")
 
-    key, value = msg.split(",")
-    value = int(value)
+    # send initial state
+    sendCurrentState(ws)
 
-    print("Received:", key, value)
+    while True:
+        data = ws.receive()
+        if data is None:
+            break
 
-    if key == "Record":
-        record_steps = not record_steps
-        if record_steps:
-            recorded_steps.clear()
-            previous_time = time.time()
+        key, value = data.split(",")
+        value = int(value)
 
-    elif key == "Play":
-        play_steps = not play_steps
-        if play_steps:
-            socketio.start_background_task(play_sequence)
+        print(f"{key} -> {value}")
 
-    else:
-        index = ["Base","Shoulder","Elbow","Gripper"].index(key)
-        write_servo(index, value)
+        if key == "Record":
+            recordSteps = bool(value)
+            if recordSteps:
+                recordedSteps.clear()
+                previousTime = time.time()
+
+            broadcast(f"Record,{ 'ON' if recordSteps else 'OFF' }")
+
+        elif key == "Play":
+            playRecordedSteps = bool(value)
+            broadcast(f"Play,{ 'ON' if playRecordedSteps else 'OFF' }")
+
+            if playRecordedSteps:
+                playRecordedRobotArmSteps()
+
+        elif key in ["Base", "Shoulder", "Elbow", "Gripper"]:
+            index = ["Base", "Shoulder", "Elbow", "Gripper"].index(key)
+            writeServoValues(index, value)
+
 
 # ======================
 # Core Logic
 # ======================
+def broadcast(msg):
+    for c in clients:
+        try:
+            c.send(msg)
+        except:
+            pass
 
-def write_servo(index, value):
-    global previous_time
 
-    if record_steps:
-        if len(recorded_steps) == 0:
-            # initial state
-            for i, s in enumerate(servos):
-                recorded_steps.append((i, s.read(), 0))
+def sendCurrentState(ws):
+    for s in servoPins:
+        ws.send(f"{s.name},{s.read()}")
 
-        current_time = time.time()
-        delay = current_time - previous_time
-        recorded_steps.append((index, value, delay))
-        previous_time = current_time
+    ws.send(f"Record,{ 'ON' if recordSteps else 'OFF' }")
+    ws.send(f"Play,{ 'ON' if playRecordedSteps else 'OFF' }")
 
-    servos[index].write(value)
-    socketio.emit("update", f"{servos[index].name},{value}")
 
-# ======================
-# Play Logic
-# ======================
+def writeServoValues(index, value):
+    global previousTime
 
-def play_sequence():
-    global play_steps
+    if recordSteps:
+        if len(recordedSteps) == 0:
+            for i, s in enumerate(servoPins):
+                recordedSteps.append((i, s.read(), 0))
 
-    if not recorded_steps:
+        currentTime = time.time()
+
+        recordedSteps.append((
+            index,
+            value,
+            currentTime - previousTime
+        ))
+
+        previousTime = currentTime
+
+    servoPins[index].write(value)
+    broadcast(f"{servoPins[index].name},{value}")
+
+
+def playRecordedRobotArmSteps():
+    global playRecordedSteps
+
+    if not recordedSteps:
         return
 
-    # move to initial slowly
+    print("▶ Playing...")
+
+    # initial
     for i in range(4):
-        idx, target, _ = recorded_steps[i]
-        while servos[idx].read() != target and play_steps:
-            cur = servos[idx].read()
-            cur += -1 if cur > target else 1
-            servos[idx].write(cur)
-            socketio.emit("update", f"{servos[idx].name},{cur}")
+        idx, val, _ = recordedSteps[i]
+        servo = servoPins[idx]
+
+        current = servo.read()
+        while current != val and playRecordedSteps:
+            current += -1 if current > val else 1
+            servo.write(current)
+            broadcast(f"{servo.name},{current}")
             time.sleep(0.05)
 
     time.sleep(2)
 
-    # play rest
-    for step in recorded_steps[4:]:
-        if not play_steps:
+    # rest
+    for idx, val, delay in recordedSteps[4:]:
+        if not playRecordedSteps:
             break
-        idx, val, delay = step
-        time.sleep(delay)
-        servos[idx].write(val)
-        socketio.emit("update", f"{servos[idx].name},{val}")
 
-    play_steps = False
+        time.sleep(delay)
+        servoPins[idx].write(val)
+        broadcast(f"{servoPins[idx].name},{val}")
+
+    playRecordedSteps = False
+    broadcast("Play,OFF")
+
+    print("✔ Done")
+
 
 # ======================
 # Run
 # ======================
-
 if __name__ == "__main__":
-    socketio.run(app, host="0.0.0.0", port=5000, debug=True)
+    app.run(debug=True)

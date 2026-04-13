@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <style>
+        input[type=button] {
+            background-color: red;
+            color: white;
+            border-radius: 30px;
+            width: 100%;
+            height: 40px;
+            font-size: 20px;
+            text-align: center;
+        }
+
+        .noselect {
+            -webkit-touch-callout: none;
+            /* iOS Safari */
+            -webkit-user-select: none;
+            /* Safari */
+            -khtml-user-select: none;
+            /* Konqueror HTML */
+            -moz-user-select: none;
+            /* Firefox */
+            -ms-user-select: none;
+            /* Internet Explorer/Edge */
+            user-select: none;
+            /* Non-prefixed version, currently
+                                      supported by Chrome and Opera */
+        }
+
+        .slidecontainer {
+            width: 100%;
+        }
+
+        .slider {
+            width: 100%;
+            height: 20px;
+            border-radius: 5px;
+            background: #d3d3d3;
+            outline: none;
+            opacity: 0.7;
+            -webkit-transition: .2s;
+            transition: opacity .2s;
+        }
+
+        .slider:hover {
+            opacity: 1;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: red;
+            cursor: pointer;
+        }
+
+        .slider::-moz-range-thumb {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: red;
+            cursor: pointer;
+        }
+    </style>
+
+</head>
+
+<body class="noselect" align="center" style="background-color:white">
+
+    <h1 style="color: teal;text-align:center;">Hash Include Electronics</h1>
+    <h2 style="color: teal;text-align:center;">Robot Arm Control</h2>
+
+    <table id="mainTable" style="width:400px;margin:auto;table-layout:fixed" CELLSPACING=10>
+        <tr />
+        <tr />
+        <tr />
+        <tr />
+        <tr>
+            <td style="text-align:left;font-size:25px"><b>Gripper:</b></td>
+            <td colspan=2>
+                <div class="slidecontainer">
+                    <input type="range" min="0" max="180" value="90" class="slider" id="Gripper"
+                        oninput='sendButtonInput("Gripper",value)'>
+                </div>
+            </td>
+        </tr>
+        <tr />
+        <tr />
+        <tr>
+            <td style="text-align:left;font-size:25px"><b>Elbow:</b></td>
+            <td colspan=2>
+                <div class="slidecontainer">
+                    <input type="range" min="0" max="180" value="90" class="slider" id="Elbow"
+                        oninput='sendButtonInput("Elbow",value)'>
+                </div>
+            </td>
+        </tr>
+        <tr />
+        <tr />
+        <tr>
+            <td style="text-align:left;font-size:25px"><b>Shoulder:</b></td>
+            <td colspan=2>
+                <div class="slidecontainer">
+                    <input type="range" min="0" max="180" value="90" class="slider" id="Shoulder"
+                        oninput='sendButtonInput("Shoulder",value)'>
+                </div>
+            </td>
+        </tr>
+        <tr />
+        <tr />
+        <tr>
+            <td style="text-align:left;font-size:25px"><b>Base:</b></td>
+            <td colspan=2>
+                <div class="slidecontainer">
+                    <input type="range" min="0" max="180" value="90" class="slider" id="Base"
+                        oninput='sendButtonInput("Base",value)'>
+                </div>
+            </td>
+        </tr>
+        <tr />
+        <tr />
+        <tr>
+            <td style="text-align:left;font-size:25px"><b>Record:</b></td>
+            <td><input type="button" id="Record" value="OFF" ontouchend='onclickButton(this)'></td>
+            <td></td>
+        </tr>
+        <tr />
+        <tr />
+        <tr>
+            <td style="text-align:left;font-size:25px"><b>Play:</b></td>
+            <td><input type="button" id="Play" value="OFF" ontouchend='onclickButton(this)'></td>
+            <td></td>
+        </tr>
+    </table>
+
+    <script>
+        var webSocketRobotArmInputUrl = "ws:\/\/" + window.location.hostname + "/RobotArmInput";
+        var websocketRobotArmInput;
+
+        function initRobotArmInputWebSocket() {
+            websocketRobotArmInput = new WebSocket(webSocketRobotArmInputUrl);
+            websocketRobotArmInput.onopen = function (event) { };
+            websocketRobotArmInput.onclose = function (event) { setTimeout(initRobotArmInputWebSocket, 2000); };
+            websocketRobotArmInput.onmessage = function (event) {
+                var keyValue = event.data.split(",");
+                var button = document.getElementById(keyValue[0]);
+                button.value = keyValue[1];
+                if (button.id == "Record" || button.id == "Play") {
+                    button.style.backgroundColor = (button.value == "ON" ? "green" : "red");
+                    enableDisableButtonsSliders(button);
+                }
+            };
+        }
+
+        function sendButtonInput(key, value) {
+            var data = key + "," + value;
+            websocketRobotArmInput.send(data);
+        }
+
+        function onclickButton(button) {
+            button.value = (button.value == "ON") ? "OFF" : "ON";
+            button.style.backgroundColor = (button.value == "ON" ? "green" : "red");
+            var value = (button.value == "ON") ? 1 : 0;
+            sendButtonInput(button.id, value);
+            enableDisableButtonsSliders(button);
+        }
+
+        function enableDisableButtonsSliders(button) {
+            if (button.id == "Play") {
+                var disabled = "auto";
+                if (button.value == "ON") {
+                    disabled = "none";
+                }
+                document.getElementById("Gripper").style.pointerEvents = disabled;
+                document.getElementById("Elbow").style.pointerEvents = disabled;
+                document.getElementById("Shoulder").style.pointerEvents = disabled;
+                document.getElementById("Base").style.pointerEvents = disabled;
+                document.getElementById("Record").style.pointerEvents = disabled;
+            }
+            if (button.id == "Record") {
+                var disabled = "auto";
+                if (button.value == "ON") {
+                    disabled = "none";
+                }
+                document.getElementById("Play").style.pointerEvents = disabled;
+            }
+        }
+
+        window.onload = initRobotArmInputWebSocket;
+        document.getElementById("mainTable").addEventListener("touchend", function (event) {
+            event.preventDefault()
+        });      
+    </script>
+</body>
+
+</html>
