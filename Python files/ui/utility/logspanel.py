@@ -6,14 +6,17 @@ from datetime import datetime
 from PyQt5.QtCore import QTimer, Qt
 from PyQt5.QtWidgets import QFrame, QVBoxLayout, QHBoxLayout, QWidget, QLabel, QSizePolicy
 from PyQt5.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QLabel, QPushButton, QScrollArea, QFrame, QSizePolicy
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, pyqtSignal
 from ui.style.colors import Colors
 from ui.utility.logs import LogEntry
+from ui.utility.logger import logger
 
 
 class SystemLogsPanel(QFrame):
+    
     def __init__(self):
         super().__init__()
+        logger.log_signal.connect(self.sendLog)
         self.setObjectName("card")
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
 
@@ -66,14 +69,16 @@ class SystemLogsPanel(QFrame):
         self.log_layout.setSpacing(0)
         self.log_layout.setAlignment(Qt.AlignTop)
 
-        self.logs = [
-            ("14:22:04.12", "INFO",   Colors.PRIMARY,          "Object detected in safety zone A-4. Re-calculating path trajectory.", 1.0),
-            ("14:22:03.45", "ACTION", Colors.TERTIARY,          "Color identified: #33F4A1. Sorting action completed on sorter 02.", 1.0),
-            ("14:21:58.88", "INFO",   Colors.PRIMARY,          "Calibration synchronized with auxiliary sensor hub.", 0.9),
-            ("14:21:55.30", "INFO",   Colors.PRIMARY,          "Package 4402 successfully routed to Outbound Terminal.", 0.7),
-            ("14:21:42.11", "INFO",   Colors.PRIMARY,          "System initialization sequence finalized. Handshake complete.", 0.5),
-        ]
-        self._render_logs()
+        self.logs = []
+
+        # self.logs = [
+        #     ("14:22:04.12", "INFO",   Colors.PRIMARY,          "Object detected in safety zone A-4. Re-calculating path trajectory.", 1.0),
+        #     ("14:22:03.45", "ACTION", Colors.TERTIARY,          "Color identified: #33F4A1. Sorting action completed on sorter 02.", 1.0),
+        #     ("14:21:58.88", "INFO",   Colors.PRIMARY,          "Calibration synchronized with auxiliary sensor hub.", 0.9),
+        #     ("14:21:55.30", "INFO",   Colors.PRIMARY,          "Package 4402 successfully routed to Outbound Terminal.", 0.7),
+        #     ("14:21:42.11", "INFO",   Colors.PRIMARY,          "System initialization sequence finalized. Handshake complete.", 0.5),
+        # ]
+        # self._render_logs()
 
         scroll.setWidget(scroll_widget)
         layout.addWidget(scroll)
@@ -107,10 +112,11 @@ class SystemLogsPanel(QFrame):
         footer_layout.addWidget(export_btn, 0, Qt.AlignCenter)
         layout.addWidget(footer)
 
-        self.log_timer = QTimer()
-        self.log_timer.timeout.connect(self._add_random_log)
-        self.log_timer.start(3000)
+        # self.log_timer = QTimer()
+        # self.log_timer.timeout.connect(self._add_random_log)
+        # self.log_timer.start(3000)
         self.scroll_widget = scroll_widget
+
 
     def _render_logs(self):
         while self.log_layout.count():
@@ -132,6 +138,14 @@ class SystemLogsPanel(QFrame):
         now = datetime.now().strftime("%H:%M:%S.%f")[:11]
         pick = random.choice(msgs)
         self.logs.insert(0, (now, pick[0], pick[1], pick[2], 1.0))
+        self.logs = [(ts, t, c, m, max(0.3, o - 0.15)) for ts, t, c, m, o in self.logs]
+        if len(self.logs) > 8:
+            self.logs.pop()
+        self._render_logs()
+    
+    def sendLog(self, kind, color, text):
+        now = datetime.now().strftime("%H:%M:%S.%f")[:11]
+        self.logs.insert(0, (now, kind, color, text, 1.0))
         self.logs = [(ts, t, c, m, max(0.3, o - 0.15)) for ts, t, c, m, o in self.logs]
         if len(self.logs) > 8:
             self.logs.pop()

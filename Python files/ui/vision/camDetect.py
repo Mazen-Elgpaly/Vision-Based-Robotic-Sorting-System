@@ -18,10 +18,10 @@ from PyQt5.QtCore import (
 )
 from PyQt5.QtGui import QPixmap
 from PyQt5.QtWebEngineWidgets import QWebEngineView
+from ui.utility.logger import logger
 
 
 boxes = []
-ignored_points = []
 
 kernel = np.ones((5,5), np.uint8)
 class CameraFeedPanel(QFrame):
@@ -198,12 +198,6 @@ class CameraFeedPanel(QFrame):
         self.update_timer.timeout.connect(self.update_frame)
         self.update_timer.start(50)
 
-    def is_ignored(self, cx, cy):
-        for (ix, iy) in ignored_points:
-            if abs(cx - ix) < 50 and abs(cy - iy) < 50:
-                return True
-        return False
-
     def count_objects(self, mask, color, frame_to_draw):
         mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
         mask = cv2.morphologyEx(mask, cv2.MORPH_DILATE, kernel)
@@ -220,10 +214,8 @@ class CameraFeedPanel(QFrame):
                 x, y, w, h = cv2.boundingRect(cnt)
                 cx, cy = x + w//2, y + h//2
 
-                if self.is_ignored(cx, cy):
-                    continue
-
                 count += 1
+                
 
                 # --- [3] أهم تعديل: ميفكرش يدوس لو اللون رصاصي ---
                 if color != "box":
@@ -314,10 +306,15 @@ class CameraFeedPanel(QFrame):
                 gray_mask = cv2.inRange(hsv, self.lower_gray, self.upper_gray)
 
                 # IMPORTANT: ما تخزنش النتيجة في frame
-                self.count_objects(red_mask, "red", frame)
-                self.count_objects(blue_mask, "blue", frame)
-                self.count_objects(green_mask, "green", frame)
-                self.count_objects(gray_mask, "box", frame)
+                redcount = self.count_objects(red_mask, "red", frame)
+                bluecount = self.count_objects(blue_mask, "blue", frame)
+                greencount = self.count_objects(green_mask, "green", frame)
+                graycount = self.count_objects(gray_mask, "box", frame)
+                for color, count in [("red", redcount), ("blue", bluecount), ("green", greencount), ("box", graycount)]:
+                    if count > 0:
+                        log_text = f"Detected {count} {color} in Frame!"
+                        if log_text not in [log['text'] for log in logger.get_logs()]:
+                            logger.add_log("INFO", log_text)
 
                 # تحويل لـ RGB للعرض
                 rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)

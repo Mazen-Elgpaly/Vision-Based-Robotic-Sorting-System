@@ -8,4 +8,4 @@ Vision-Based Robotic Arm V1.0 - Robotic Control Dashboard
 from ui.ui import RenderUI
 
 if __name__ == "__main__":
-    RenderUI("Vision-Based Robotic Arm V1.0", 1).render()
+    RenderUI("Vision-Based Robotic Arm V1.0", 0).render()

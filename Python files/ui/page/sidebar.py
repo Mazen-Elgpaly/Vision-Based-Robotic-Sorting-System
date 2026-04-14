@@ -6,6 +6,7 @@ from PyQt5.QtGui import QFont
 from PyQt5.QtWidgets import QFrame, QVBoxLayout, QWidget, QLabel, QPushButton
 from ui.style.colors import Colors
 from PyQt5.QtCore import Qt, pyqtSignal
+from ui.utility.logger import logger
 
 
 class SideNavBar(QFrame):
@@ -91,6 +92,8 @@ class SideNavBar(QFrame):
             def handler(_, n=name, b=btn):
                 self.set_active(b)
                 self.navigate.emit(n)
+                logger.add_log("INFO", f"Navigate to {n} 🔥")
+
 
             btn.clicked.connect(handler)
             layout.addWidget(btn)
