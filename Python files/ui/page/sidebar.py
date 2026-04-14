@@ -3,15 +3,13 @@
 # ─────────────────────────────────────────────
 
 from PyQt5.QtGui import QFont
-from PyQt5.QtWidgets import QFrame, QVBoxLayout, QWidget, QLabel
+from PyQt5.QtWidgets import QFrame, QVBoxLayout, QWidget, QLabel, QPushButton
 from ui.style.colors import Colors
-from PyQt5.QtWidgets import (
-    QWidget, QVBoxLayout,
-    QLabel, QPushButton, QFrame,
-)
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, pyqtSignal
+
 
 class SideNavBar(QFrame):
+    navigate = pyqtSignal(str)
     def __init__(self):
         super().__init__()
         self.setObjectName("sidebar")
@@ -77,13 +75,29 @@ class SideNavBar(QFrame):
             ("Logs", "≡", False),
         ]
 
+        self.buttons = []
+
         for name, icon, active in nav_items:
             btn = QPushButton(f"{icon}\n{name.upper()}")
             btn.setObjectName("nav_btn_active" if active else "nav_btn")
             btn.setFixedHeight(70)
             btn.setFixedWidth(80)
-            btn.setFont(QFont("Calbiri", 90))
+            btn.setFont(QFont("Calibri", 10))
+            btn.setCursor(Qt.PointingHandCursor)
+
+            self.buttons.append(btn)
+
+            # handler
+            def handler(_, n=name, b=btn):
+                self.set_active(b)
+                self.navigate.emit(n)
+
+            btn.clicked.connect(handler)
             layout.addWidget(btn)
+
+            # خلي أول زر active فعليًا
+            if active:
+                self.set_active(btn)
 
         layout.addStretch()
 
@@ -98,3 +112,13 @@ class SideNavBar(QFrame):
         emerg_btn.setToolTip("EMERGENCY STOP")
         emerg_layout.addWidget(emerg_btn, 0, Qt.AlignHCenter)
         layout.addWidget(emerg_widget)
+
+    def set_active(self, active_btn):
+        for btn in self.buttons:
+            btn.setObjectName("nav_btn")
+            btn.style().unpolish(btn)
+            btn.style().polish(btn)
+
+        active_btn.setObjectName("nav_btn_active")
+        active_btn.style().unpolish(active_btn)
+        active_btn.style().polish(active_btn)

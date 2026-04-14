@@ -1,11 +1,15 @@
 # ─────────────────────────────────────────────
 #  MAIN WINDOW
 # ─────────────────────────────────────────────
-from PyQt5.QtWidgets import QMainWindow, QWidget, QHBoxLayout, QVBoxLayout
+from PyQt5.QtWidgets import QMainWindow, QStackedWidget, QWidget, QHBoxLayout, QVBoxLayout
 from ui.utility.livethread import LiveDataThread
 from ui.vision.camDetect import CameraFeedPanel
 from ui.page.sidebar import SideNavBar
 from ui.page.topbar import TopBar
+from ui.page.manual import ManualControlPage
+from ui.page.telemetry import TelemetryPage
+from ui.page.diagnostics import DiagnosticsPage
+from ui.page.logs import LogsPage
 from ui.module.sensorMatricCard import MetricCard
 from ui.utility.logspanel import SystemLogsPanel
 from ui.style.colors import Colors
@@ -32,22 +36,49 @@ class KineticArchitectDashboard(QMainWindow):
         root_layout.setSpacing(0)
 
         self.sidebar = SideNavBar()
+        self.sidebar.navigate.connect(self.switch_page)
         root_layout.addWidget(self.sidebar)
 
         main_area = QWidget()
         main_area.setStyleSheet("background: transparent;")
+
         main_layout = QVBoxLayout(main_area)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
 
-        self.topbar = TopBar()
-        main_layout.addWidget(self.topbar)
+        self.stack = QStackedWidget()
 
         content = QWidget()
         content.setStyleSheet("background: transparent;")
         content_layout = QHBoxLayout(content)
         content_layout.setContentsMargins(20, 20, 20, 20)
         content_layout.setSpacing(20)
+
+        self.page_dashboard = content   # اللي انت عامله بالفعل
+        self.page_telemetry = TelemetryPage()
+        self.page_manual = ManualControlPage()
+        self.page_diagnostics = DiagnosticsPage()
+        self.page_logs = LogsPage()
+
+        self.pages = {
+            "Dashboard": self.page_dashboard,
+            "Telemetry": self.page_telemetry,
+            "Manual": self.page_manual,
+            "Diagnostics": self.page_diagnostics,
+            "Logs": self.page_logs,
+        }
+        
+
+        self.stack.addWidget(self.page_dashboard)
+        self.stack.addWidget(self.page_telemetry)
+        self.stack.addWidget(self.page_manual)
+        self.stack.addWidget(self.page_diagnostics)
+        self.stack.addWidget(self.page_logs)
+
+        self.stack.setCurrentWidget(self.page_dashboard)
+
+        self.topbar = TopBar()
+        main_layout.addWidget(self.topbar)
 
         left_col = QVBoxLayout()
         left_col.setSpacing(16)
@@ -79,7 +110,7 @@ class KineticArchitectDashboard(QMainWindow):
         content_layout.setStretch(0, 3)
         content_layout.setStretch(1, 1)
 
-        main_layout.addWidget(content, stretch=1)
+        main_layout.addWidget(self.stack, stretch=1)
         root_layout.addWidget(main_area, stretch=1)
 
         # Connect topbar signals
@@ -90,6 +121,9 @@ class KineticArchitectDashboard(QMainWindow):
         self.data_thread = LiveDataThread()
         self.data_thread.data_updated.connect(self._on_data_update)
         self.data_thread.start()
+
+    def switch_page(self, name):
+        self.stack.setCurrentWidget(self.pages[name])
 
     def _on_data_update(self, data):
         self.camera_panel.update_data(data)
