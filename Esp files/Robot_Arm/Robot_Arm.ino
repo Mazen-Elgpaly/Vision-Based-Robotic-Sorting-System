@@ -39,6 +39,11 @@ ServoData servos[] = {
   { Servo(), 33, "Gripper", 90, 90 }
 };
 
+const int in1 = 12;
+const int in2 = 13;
+const int in3 = 14;
+const int in4 = 27;
+
 #define SERVO_COUNT 4
 
 // =======================
@@ -59,6 +64,26 @@ bool shouldBroadcast = false;
 // =======================
 // Helpers
 // =======================
+// دالة التحكم في المواتير
+void controlCar(String command) {
+  if (command == "F") { // قدام
+    digitalWrite(in1, HIGH); digitalWrite(in2, LOW);
+    digitalWrite(in3, HIGH); digitalWrite(in4, LOW);
+  } else if (command == "B") { // ورا
+    digitalWrite(in1, LOW); digitalWrite(in2, HIGH);
+    digitalWrite(in3, LOW); digitalWrite(in4, HIGH);
+  } else if (command == "L") { // شمال
+    digitalWrite(in1, LOW); digitalWrite(in2, HIGH);
+    digitalWrite(in3, HIGH); digitalWrite(in4, LOW);
+  } else if (command == "R") { // يمين
+    digitalWrite(in1, HIGH); digitalWrite(in2, LOW);
+    digitalWrite(in3, LOW); digitalWrite(in4, HIGH);
+  } else if (command == "S") { // وقف
+    digitalWrite(in1, LOW); digitalWrite(in2, LOW);
+    digitalWrite(in3, LOW); digitalWrite(in4, LOW);
+  }
+}
+
 int findServoIndex(const char* name) {
   for (int i = 0; i < SERVO_COUNT; i++) {
     if (strcmp(servos[i].name, name) == 0) return i;
@@ -157,6 +182,9 @@ void onEvent(AsyncWebSocket *server, AsyncWebSocketClient *client,
 // =======================
 void setup() {
   Serial.begin(115200);
+
+  pinMode(in1, OUTPUT); pinMode(in2, OUTPUT);
+  pinMode(in3, OUTPUT); pinMode(in4, OUTPUT);
 
   // مهم للاستقرار
   esp_netif_init();

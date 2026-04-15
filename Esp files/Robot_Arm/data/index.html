@@ -1,22 +1,65 @@
 <!DOCTYPE html>
 <html>
 
+<style>
+  html,
+  body {
+    font-family: Arial, sans-serif;
+    text-align: center;
+    margin-top: 50px;
+    background-color: #000;
+    color: #00ffff;
+  }
+
+  button {
+    padding: 10px 20px;
+    margin: 5px;
+    font-size: 16px;
+    cursor: pointer;
+    background-color: #008CBA;
+    outline: none;
+    border: none;
+    border-radius: 5px;
+  }
+
+  button:hover {
+    background-color: #00ffff;
+  }
+
+  button:active {
+    background-color: #00ffff;
+  }
+</style>
+
 <body>
 
-  <h2>ESP32 Arm</h2>
+  <h1>ESP32 Arm</h1>
 
   <script>
     let ws = new WebSocket("ws://" + location.host + "/ws");
 
     ws.onmessage = e => console.log(e.data);
 
-    function send(name, val) {
-      ws.send(name + "," + val);
+    function send(name, val = null) {
+      if (ws.readyState === WebSocket.OPEN) {
+        let message = (val !== null) ? name + "," + val : name;
+        ws.send(message);
+        console.log("Sent: " + message);
+      }
     }
   </script>
 
   <button onclick="send('Base',120)">Base 120</button>
   <button onclick="send('Elbow',60)">Elbow 60</button>
+  <button onclick="send('Wrist',30)">Wrist 30</button>
+  <button onclick="send('Gripper',10)">Gripper 10</button><br>
+  <button onclick="send('GET')">Get Positions</button>
+  <button onclick="send('GET', 'Base')">Get Base Position</button>
+  <br>
+  <button onmousedown='send("F")' onmouseup='send("S")'>Forward</button><br>
+  <button onmousedown='send("L")' onmouseup='send("S")'>Left</button>
+  <button onmousedown='send("R")' onmouseup='send("S")'>Right</button><br>
+  <button onmousedown='send("B")' onmouseup='send("S")'>Backward</button>
 
 </body>
 
