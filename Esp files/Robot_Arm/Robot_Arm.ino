@@ -39,10 +39,10 @@ ServoData servos[] = {
   { Servo(), 33, "Gripper", 90, 90 }
 };
 
-const int in1 = 12;
-const int in2 = 13;
+const int in1 = 35;
+const int in2 = 32;
 const int in3 = 14;
-const int in4 = 27;
+const int in4 = 12;
 
 #define SERVO_COUNT 4
 
