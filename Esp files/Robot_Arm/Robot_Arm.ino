@@ -27,7 +27,7 @@ AsyncWebSocket ws("/ws");
 struct ServoData {
   Servo servo;
   int pin;
-  const char* name;
+  const char *name;
   int current;
   int target;
 };
@@ -39,10 +39,10 @@ ServoData servos[] = {
   { Servo(), 33, "Gripper", 90, 90 }
 };
 
-const int in1 = 35;
-const int in2 = 32;
-const int in3 = 14;
-const int in4 = 12;
+const int in1 = 32;
+const int in2 = 13;
+const int in3 = 12;
+const int in4 = 14;
 
 #define SERVO_COUNT 4
 
@@ -51,7 +51,7 @@ const int in4 = 12;
 // =======================
 unsigned long lastMove = 0;
 const int stepDelay = 20;
-const int stepSize  = 1;
+const int stepSize = 1;
 
 unsigned long lastBroadcast = 0;
 const int broadcastInterval = 500;
@@ -66,25 +66,40 @@ bool shouldBroadcast = false;
 // =======================
 // دالة التحكم في المواتير
 void controlCar(String command) {
-  if (command == "F") { // قدام
-    digitalWrite(in1, HIGH); digitalWrite(in2, LOW);
-    digitalWrite(in3, HIGH); digitalWrite(in4, LOW);
-  } else if (command == "B") { // ورا
-    digitalWrite(in1, LOW); digitalWrite(in2, HIGH);
-    digitalWrite(in3, LOW); digitalWrite(in4, HIGH);
-  } else if (command == "L") { // شمال
-    digitalWrite(in1, LOW); digitalWrite(in2, HIGH);
-    digitalWrite(in3, HIGH); digitalWrite(in4, LOW);
-  } else if (command == "R") { // يمين
-    digitalWrite(in1, HIGH); digitalWrite(in2, LOW);
-    digitalWrite(in3, LOW); digitalWrite(in4, HIGH);
-  } else if (command == "S") { // وقف
-    digitalWrite(in1, LOW); digitalWrite(in2, LOW);
-    digitalWrite(in3, LOW); digitalWrite(in4, LOW);
+  if (command == "F") {  // قدام
+    digitalWrite(in1, HIGH);
+    digitalWrite(in2, LOW);
+    digitalWrite(in3, HIGH);
+    digitalWrite(in4, LOW);
+    Serial.println("Car Farward");
+  } else if (command == "B") {  // ورا
+    digitalWrite(in1, LOW);
+    digitalWrite(in2, HIGH);
+    digitalWrite(in3, LOW);
+    digitalWrite(in4, HIGH);
+    Serial.println("Car Back");
+  } else if (command == "L") {  // شمال
+    digitalWrite(in1, LOW);
+    digitalWrite(in2, HIGH);
+    digitalWrite(in3, HIGH);
+    digitalWrite(in4, LOW);
+    Serial.println("Car Left");
+  } else if (command == "R") {  // يمين
+    digitalWrite(in1, HIGH);
+    digitalWrite(in2, LOW);
+    digitalWrite(in3, LOW);
+    digitalWrite(in4, HIGH);
+    Serial.println("Car Right");
+  } else if (command == "S") {  // وقف
+    digitalWrite(in1, LOW);
+    digitalWrite(in2, LOW);
+    digitalWrite(in3, LOW);
+    digitalWrite(in4, LOW);
+    Serial.println("Car Stoped!!");
   }
 }
 
-int findServoIndex(const char* name) {
+int findServoIndex(const char *name) {
   for (int i = 0; i < SERVO_COUNT; i++) {
     if (strcmp(servos[i].name, name) == 0) return i;
   }
@@ -93,12 +108,11 @@ int findServoIndex(const char* name) {
 
 void buildJSON(char *buffer) {
   snprintf(buffer, 128,
-    "{\"Base\":%d,\"Shoulder\":%d,\"Elbow\":%d,\"Gripper\":%d}",
-    servos[0].current,
-    servos[1].current,
-    servos[2].current,
-    servos[3].current
-  );
+           "{\"Base\":%d,\"Shoulder\":%d,\"Elbow\":%d,\"Gripper\":%d}",
+           servos[0].current,
+           servos[1].current,
+           servos[2].current,
+           servos[3].current);
 }
 
 // =======================
@@ -113,10 +127,17 @@ void handleWebSocket(void *arg, uint8_t *data, size_t len, AsyncWebSocketClient 
   if (!(info->final && info->index == 0 && info->len == len)) return;
 
   // 2. انقل الداتا لمكان آمن بدل ما تعدل في الـ pointer الأصلي
-  char msg[64]; // حجم كافي للرسايل بتاعتك
+  char msg[64];  // حجم كافي للرسايل بتاعتك
   size_t safeLen = (len < sizeof(msg) - 1) ? len : sizeof(msg) - 1;
   memcpy(msg, data, safeLen);
-  msg[safeLen] = '\0'; // قفل السلسلة هنا بأمان
+  msg[safeLen] = '\0';  // قفل السلسلة هنا بأمان
+
+  if (strlen(msg) == 1) {
+    // لو الرسالة حرف واحد يبقى غالباً أمر حركة للعربية
+    controlCar(String(msg));
+    
+    return;
+  }
 
   // =========================
   // GET ALL
@@ -125,6 +146,8 @@ void handleWebSocket(void *arg, uint8_t *data, size_t len, AsyncWebSocketClient 
     char buffer[128];
     buildJSON(buffer);
     client->text(buffer);
+    Serial.println("All Servo's info:");
+    Serial.println(buffer);
     return;
   }
 
@@ -183,8 +206,10 @@ void onEvent(AsyncWebSocket *server, AsyncWebSocketClient *client,
 void setup() {
   Serial.begin(115200);
 
-  pinMode(in1, OUTPUT); pinMode(in2, OUTPUT);
-  pinMode(in3, OUTPUT); pinMode(in4, OUTPUT);
+  pinMode(in1, OUTPUT);
+  pinMode(in2, OUTPUT);
+  pinMode(in3, OUTPUT);
+  pinMode(in4, OUTPUT);
 
   // مهم للاستقرار
   esp_netif_init();
