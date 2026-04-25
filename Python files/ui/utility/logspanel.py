@@ -1,6 +1,7 @@
 # ─────────────────────────────────────────────
 #  SYSTEM LOGS PANEL
 # ─────────────────────────────────────────────
+import os
 import random
 from datetime import datetime
 from PyQt5.QtCore import QTimer, Qt
@@ -96,6 +97,8 @@ class SystemLogsPanel(QFrame):
         footer_layout = QHBoxLayout(footer)
         footer_layout.setContentsMargins(16, 0, 16, 0)
         export_btn = QPushButton("↗  EXPORT SESSION DATA")
+        export_btn.setCursor(Qt.PointingHandCursor)
+        export_btn.clicked.connect(self.export_logs)
         export_btn.setStyleSheet(f"""
             QPushButton {{
                 background: transparent;
@@ -116,7 +119,14 @@ class SystemLogsPanel(QFrame):
         # self.log_timer.timeout.connect(self._add_random_log)
         # self.log_timer.start(3000)
         self.scroll_widget = scroll_widget
-
+        
+    def export_logs(self):
+        with open("session_logs.txt", "w", encoding="utf-8") as f:
+            f.write("Timestamp       | Tag     | Message\n")
+            f.write("-" * 50 + "\n")
+            f.write("\n".join([f"{ts} | {tag} | {msg}" for ts, tag, color, msg, op in self.logs]))
+            f.write("\n")
+        os.system("notepad session_logs.txt")
 
     def _render_logs(self):
         while self.log_layout.count():
@@ -126,27 +136,11 @@ class SystemLogsPanel(QFrame):
         for ts, tag, color, msg, op in self.logs:
             entry = LogEntry(ts, tag, color, msg, op)
             self.log_layout.addWidget(entry)
-
-    def _add_random_log(self):
-        msgs = [
-            ("ACTION", Colors.TERTIARY,  "Grip force adjusted: 3.2 N. Object secured."),
-            ("INFO",   Colors.PRIMARY,   "Temperature nominal. Cooling fans at 40%."),
-            ("INFO",   Colors.PRIMARY,   f"Cycle #{random.randint(1000,9999)} completed in {random.randint(300,800)}ms."),
-            ("WARN",   Colors.TERTIARY,  "Proximity sensor threshold approaching limit."),
-            ("INFO",   Colors.PRIMARY,   "Vision model confidence: 98.4%. Object classified."),
-        ]
-        now = datetime.now().strftime("%H:%M:%S.%f")[:11]
-        pick = random.choice(msgs)
-        self.logs.insert(0, (now, pick[0], pick[1], pick[2], 1.0))
-        self.logs = [(ts, t, c, m, max(0.3, o - 0.15)) for ts, t, c, m, o in self.logs]
-        if len(self.logs) > 8:
-            self.logs.pop()
-        self._render_logs()
     
     def sendLog(self, kind, color, text):
         now = datetime.now().strftime("%H:%M:%S.%f")[:11]
         self.logs.insert(0, (now, kind, color, text, 1.0))
         self.logs = [(ts, t, c, m, max(0.3, o - 0.15)) for ts, t, c, m, o in self.logs]
-        if len(self.logs) > 8:
-            self.logs.pop()
+        # if len(self.logs) > 8:
+        #     self.logs.pop()
         self._render_logs()

@@ -96,7 +96,7 @@ class TopBar(QFrame):
     def button_clicked(self, icon):
         if icon == "⌨":
             CameraFeedPanel().toggle_freeze()
-            logger.add_log("INFO", "Toggled Camera Freeze ❄️")
+            logger.add_log("ACTION", "Toggled Camera Freeze ❄️")
         elif icon == "⚙":
             print("Settings clicked")
         elif icon == "?":

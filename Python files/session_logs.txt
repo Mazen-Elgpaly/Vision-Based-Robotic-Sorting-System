@@ -1,0 +1,5 @@
+Timestamp       | Tag     | Message
+--------------------------------------------------
+19:48:17.43 | ACTION | Stable State Achieved ✅
+19:48:15.39 | ACTION | Motion Detected! 🚀
+19:48:14.60 | INFO | Navigate to Logs 🔥

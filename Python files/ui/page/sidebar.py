@@ -84,7 +84,7 @@ class SideNavBar(QFrame):
             btn.setObjectName("nav_btn_active" if active else "nav_btn")
             btn.setFixedHeight(70)
             btn.setFixedWidth(80)
-            btn.setFont(QFont("Calibri", 10))
+            btn.setFont(QFont("Calibri", 100, QFont.Bold))
             btn.setCursor(Qt.PointingHandCursor)
 
             self.buttons.append(btn)

@@ -2,6 +2,7 @@
 #  MAIN WINDOW
 # ─────────────────────────────────────────────
 from PyQt5.QtWidgets import QMainWindow, QStackedWidget, QWidget, QHBoxLayout, QVBoxLayout
+from PyQt5.QtCore import Qt
 from ui.utility.livethread import LiveDataThread
 from ui.vision.camDetect import CameraFeedPanel
 from ui.page.sidebar import SideNavBar
@@ -104,7 +105,7 @@ class KineticArchitectDashboard(QMainWindow):
         self.logs_panel = SystemLogsPanel()
         self.env_card = EnvSyncCard("../images/robot.jpg", base_width=250)
         right_col.addWidget(self.logs_panel, stretch=1)
-        right_col.addWidget(self.env_card)
+        right_col.addWidget(self.env_card, alignment=Qt.AlignmentFlag.AlignCenter)
 
         content_layout.addLayout(right_col)
         content_layout.setStretch(0, 3)

@@ -259,14 +259,14 @@ class CameraFeedPanel(QFrame):
         if self.last_frame is not None:
             self.is_frozen = True
             self.frozen_frame = self.last_frame.copy()
-            logger.add_log("INFO", "Live Feed Frozen ❄️")
+            logger.add_log("ACTION", "Live Feed Frozen ❄️")
             self.update_timer.stop()
             self.snapshot_taken.emit(self.frozen_frame)
 
     def resume(self):
         self.is_frozen = False
         self.update_timer.start(50)
-        logger.add_log("INFO", "Live Feed Resumed ▶️")
+        logger.add_log("ACTION", "Live Feed Resumed ▶️")
 
     def toggle_freeze(self):
         if self.is_frozen:
@@ -383,17 +383,13 @@ class CameraFeedPanel(QFrame):
             if len(self.motion_history) == 5:
                 # لو الـ 5 كلهم حركة وأنا كنت ثابت -> اطبع حركة
                 if all(self.motion_history) and not self.stable_state:
-                    if logs := logger.get_logs():
-                        last_log = logs[0]['text']
-                        if "Motion Detected" not in last_log:
-                            logger.add_log("INFO", "Motion Detected! 🚀")
+                    if "Motion Detected" not in logger.get_logs()[0]['text'] if logger.get_logs() else "":
+                        logger.add_log("ACTION", "Motion Detected! 🚀")
                     self.stable_state = True
                 # لو الـ 5 كلهم سكون وأنا كنت بتتحرك -> اطبع ثبات
                 elif not any(self.motion_history) and self.stable_state:
-                    if logs := logger.get_logs():
-                        last_log = logs[0]['text']
-                        if "Stable State" not in last_log:
-                            logger.add_log("INFO", "Stable State Achieved ✅")
+                    if "Stable State" not in logger.get_logs()[0]['text'] if logger.get_logs() else "":
+                        logger.add_log("ACTION", "Stable State Achieved ✅")
                     self.stable_state = False
 
             # تحديث الفريم المرجعي للمرة الجاية
