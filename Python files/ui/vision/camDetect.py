@@ -26,6 +26,7 @@ boxes = []
 kernel = np.ones((5,5), np.uint8)
 class CameraFeedPanel(QFrame):
     frame_updated = pyqtSignal(object)
+    snapshot_taken = pyqtSignal(object)
 
     def __init__(self, camera_index=0):
         super().__init__()
@@ -50,6 +51,13 @@ class CameraFeedPanel(QFrame):
 
         self.lower_gray = np.array([0,0,45])
         self.upper_gray = np.array([0,0,64])
+
+        self.is_frozen = False
+        self.frozen_frame = None
+        self.last_frame = None
+        
+        self.fail_count = 0
+        self.max_fail = 5
 
     def init_ui(self):
         self.setObjectName("card")
@@ -231,12 +239,12 @@ class CameraFeedPanel(QFrame):
 
     def init_camera(self):
         try:
-            self.capture = cv2.VideoCapture(self.camera_index)
+            self.capture = cv2.VideoCapture(self.camera_index, cv2.CAP_DSHOW)
+            self.capture.set(cv2.CAP_PROP_BUFFERSIZE, 1)
             if self.capture.isOpened():
                 self.camera_available = True
                 self.camera_status.setStyleSheet("color: #00ff00; font-size: 8px; background: transparent;")
                 self.video_label.setText("")
-                print(f"Camera {self.camera_index} initialized successfully")
             else:
                 self.camera_available = False
                 self.camera_status.setStyleSheet("color: #ff4444; font-size: 8px; background: transparent;")
@@ -246,6 +254,31 @@ class CameraFeedPanel(QFrame):
             self.camera_available = False
             self.camera_status.setStyleSheet("color: #ff4444; font-size: 8px; background: transparent;")
             print(f"Camera initialization error: {e}")
+            
+    def freeze(self):
+        if self.last_frame is not None:
+            self.is_frozen = True
+            self.frozen_frame = self.last_frame.copy()
+            logger.add_log("INFO", "Live Feed Frozen ❄️")
+            self.update_timer.stop()
+            self.snapshot_taken.emit(self.frozen_frame)
+
+    def resume(self):
+        self.is_frozen = False
+        self.update_timer.start(50)
+        logger.add_log("INFO", "Live Feed Resumed ▶️")
+
+    def toggle_freeze(self):
+        if self.is_frozen:
+            self.resume()
+        else:
+            self.freeze()
+
+    def get_snapshot(self):
+        """تستخدمها في أي صفحة تانية"""
+        if self.frozen_frame is not None:
+            return self.frozen_frame.copy()
+        return None
 
     def set_mode(self, mode):
         self.mode = mode
@@ -291,49 +324,133 @@ class CameraFeedPanel(QFrame):
     def update_frame(self):
         if not self.camera_available or self.capture is None:
             return
+        
+        # 1. تعريف متغيرات الحالة (لو مش موجودة) عشان الذاكرة
+        if not hasattr(self, 'motion_history'): self.motion_history = []
+        if not hasattr(self, 'stable_state'): self.stable_state = False
+        if not hasattr(self, 'prev_gray'): self.prev_gray = None
 
         try:
             ret, frame = self.capture.read()
-            if ret:
-                hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 
-                # Masks
+            if not ret:
+                self.fail_count += 1
+                print(f"Frame failed ({self.fail_count})")
+                if self.is_frozen:
+                    return
+                if self.fail_count >= self.max_fail:
+                    print("Reinitializing camera...")
+                    self.release_camera()
+                    self.init_camera()
+                    self.fail_count = 0
+                return
+            else:
+                self.fail_count = 0
+
+            # نسخة للتعامل معاها في العرض
+            self.last_frame = frame.copy()
+            
+            # --- [بداية لوجيك الحركة الذكي] ---
+            # تحويل للجراي وتنعيم عشان الدقة والسرعة
+            gray_current = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            gray_current = cv2.GaussianBlur(gray_current, (21, 21), 0)
+
+            # لو مفيش فريم قديم، خزن ده واخرج من اللفة دي
+            if self.prev_gray is None:
+                self.prev_gray = gray_current
+                return
+
+            # حساب الفرق والـ Threshold
+            diff = cv2.absdiff(self.prev_gray, gray_current)
+            thresh = cv2.threshold(diff, 25, 255, cv2.THRESH_BINARY)[1]
+            thresh = cv2.dilate(thresh, None, iterations=2)
+
+            contours, _ = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+            is_currently_moving = False
+            for contour in contours:
+                if cv2.contourArea(contour) < 800: # حساسية الحركة (ممكن تعدل الرقم ده)
+                    continue
+                is_currently_moving = True
+                break
+            
+            # تحديث تاريخ الحركة (آخر 5 فريمات)
+            self.motion_history.append(is_currently_moving)
+            if len(self.motion_history) > 5:
+                self.motion_history.pop(0)
+
+            # التأكد من ثبات الحالة قبل الطباعة (عشان ما يطبعش مرتين)
+            if len(self.motion_history) == 5:
+                # لو الـ 5 كلهم حركة وأنا كنت ثابت -> اطبع حركة
+                if all(self.motion_history) and not self.stable_state:
+                    if logs := logger.get_logs():
+                        last_log = logs[0]['text']
+                        if "Motion Detected" not in last_log:
+                            logger.add_log("INFO", "Motion Detected! 🚀")
+                    self.stable_state = True
+                # لو الـ 5 كلهم سكون وأنا كنت بتتحرك -> اطبع ثبات
+                elif not any(self.motion_history) and self.stable_state:
+                    if logs := logger.get_logs():
+                        last_log = logs[0]['text']
+                        if "Stable State" not in last_log:
+                            logger.add_log("INFO", "Stable State Achieved ✅")
+                    self.stable_state = False
+
+            # تحديث الفريم المرجعي للمرة الجاية
+            self.prev_gray = gray_current
+            # --- [نهاية لوجيك الحركة] ---
+
+            # لو عامل Freeze اعرض الصورة المتجمدة
+            if self.is_frozen: 
+                display_frame = self.frozen_frame.copy()
+            else:
+                display_frame = frame # هنشتغل على الفريم الحي
+                hsv = cv2.cvtColor(display_frame, cv2.COLOR_BGR2HSV)
+
+                # Masks الألوان اللي عندك
                 red_mask = cv2.inRange(hsv, self.lower_red1, self.upper_red1) + \
                            cv2.inRange(hsv, self.lower_red2, self.upper_red2)
-
                 blue_mask = cv2.inRange(hsv, self.lower_blue, self.upper_blue)
                 green_mask = cv2.inRange(hsv, self.lower_green, self.upper_green)
                 gray_mask = cv2.inRange(hsv, self.lower_gray, self.upper_gray)
 
-                # IMPORTANT: ما تخزنش النتيجة في frame
-                redcount = self.count_objects(red_mask, "red", frame)
-                bluecount = self.count_objects(blue_mask, "blue", frame)
-                greencount = self.count_objects(green_mask, "green", frame)
-                graycount = self.count_objects(gray_mask, "box", frame)
+                # عد الكائنات (Object Counting)
+                redcount = self.count_objects(red_mask, "red", display_frame)
+                bluecount = self.count_objects(blue_mask, "blue", display_frame)
+                greencount = self.count_objects(green_mask, "green", display_frame)
+                graycount = self.count_objects(gray_mask, "box", display_frame)
+
+                # تسجيل الـ Logs
                 for color, count in [("red", redcount), ("blue", bluecount), ("green", greencount), ("box", graycount)]:
                     if count > 0:
                         log_text = f"Detected {count} {color} in Frame!"
                         if log_text not in [log['text'] for log in logger.get_logs()]:
                             logger.add_log("INFO", log_text)
 
-                # تحويل لـ RGB للعرض
-                rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            # تحويل لـ RGB وتجهيز الصورة للـ GUI
+            rgb_frame = cv2.cvtColor(display_frame, cv2.COLOR_BGR2RGB)
+            h, w, ch = rgb_frame.shape
+            bytes_per_line = ch * w
 
-                h, w, ch = rgb_frame.shape
-                bytes_per_line = ch * w
+            qt_image = QImage(rgb_frame.data, w, h, bytes_per_line, QImage.Format_RGB888)
+            self.video_label.setPixmap(QPixmap.fromImage(qt_image))
+            
+            # إرسال الفريم للإشارات الخارجية
+            self.frame_updated.emit(display_frame)
 
-                qt_image = QImage(rgb_frame.data, w, h, bytes_per_line, QImage.Format_RGB888)
-
-                self.video_label.setPixmap(QPixmap.fromImage(qt_image))
-                self.frame_updated.emit(frame)
-            else:
-                print("Failed to read frame, attempting to reinitialize camera...")
+            # التعامل مع مفاتيح الكيبورد
+            key = cv2.waitKey(1) & 0xFF
+            if key == ord('f'):
+                self.toggle_freeze()
+            elif key == ord('s'):
+                self.snapshot_taken.emit(display_frame)
+            elif key == ord('q'):
                 self.release_camera()
-                self.init_camera()
                 
         except Exception as e:
             print(f"Error updating frame: {e}")
-
+            
+                 
     def resizeEvent(self, event):
         super().resizeEvent(event)
         if hasattr(self, 'hud_frame'):

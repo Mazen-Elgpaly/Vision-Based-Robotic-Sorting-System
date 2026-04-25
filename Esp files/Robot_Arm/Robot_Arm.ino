@@ -33,16 +33,16 @@ struct ServoData {
 };
 
 ServoData servos[] = {
-  { Servo(), 27, "Base", 90, 90 },
-  { Servo(), 26, "Shoulder", 90, 90 },
-  { Servo(), 25, "Elbow", 90, 90 },
-  { Servo(), 33, "Gripper", 90, 90 }
+  { Servo(), 26, "Base", 90, 90 },
+  { Servo(), 25, "Shoulder", 90, 90 },
+  { Servo(), 33, "Elbow", 90, 90 },
+  { Servo(), 32, "Gripper", 90, 90 }
 };
 
-const int in1 = 32;
-const int in2 = 13;
-const int in3 = 12;
-const int in4 = 14;
+const int in1 = 13;
+const int in2 = 12;
+const int in3 = 14;
+const int in4 = 27;
 
 #define SERVO_COUNT 4
 
@@ -65,37 +65,40 @@ bool shouldBroadcast = false;
 // Helpers
 // =======================
 // دالة التحكم في المواتير
-void controlCar(String command) {
-  if (command == "F") {  // قدام
-    digitalWrite(in1, HIGH);
-    digitalWrite(in2, LOW);
-    digitalWrite(in3, HIGH);
-    digitalWrite(in4, LOW);
-    Serial.println("Car Farward");
-  } else if (command == "B") {  // ورا
-    digitalWrite(in1, LOW);
-    digitalWrite(in2, HIGH);
-    digitalWrite(in3, LOW);
-    digitalWrite(in4, HIGH);
-    Serial.println("Car Back");
-  } else if (command == "L") {  // شمال
-    digitalWrite(in1, LOW);
-    digitalWrite(in2, HIGH);
-    digitalWrite(in3, HIGH);
-    digitalWrite(in4, LOW);
-    Serial.println("Car Left");
-  } else if (command == "R") {  // يمين
-    digitalWrite(in1, HIGH);
-    digitalWrite(in2, LOW);
-    digitalWrite(in3, LOW);
-    digitalWrite(in4, HIGH);
-    Serial.println("Car Right");
-  } else if (command == "S") {  // وقف
-    digitalWrite(in1, LOW);
-    digitalWrite(in2, LOW);
-    digitalWrite(in3, LOW);
-    digitalWrite(in4, LOW);
-    Serial.println("Car Stoped!!");
+void controlCar(char command) {
+  switch (command) {
+    case 'F':
+      // قدام
+      digitalWrite(in1, HIGH);
+      digitalWrite(in2, LOW);
+      digitalWrite(in3, HIGH);
+      digitalWrite(in4, LOW);
+      Serial.println("Car Farward");
+      break;
+    case 'B':  // ورا
+      digitalWrite(in1, LOW);
+      digitalWrite(in2, HIGH);
+      digitalWrite(in3, LOW);
+      digitalWrite(in4, HIGH);
+      Serial.println("Car Back");
+    case 'L':  // شمال
+      digitalWrite(in1, LOW);
+      digitalWrite(in2, HIGH);
+      digitalWrite(in3, HIGH);
+      digitalWrite(in4, LOW);
+      Serial.println("Car Left");
+    case 'R':  // يمين
+      digitalWrite(in1, HIGH);
+      digitalWrite(in2, LOW);
+      digitalWrite(in3, LOW);
+      digitalWrite(in4, HIGH);
+      Serial.println("Car Right");
+    case 'S':  // وقف
+      digitalWrite(in1, LOW);
+      digitalWrite(in2, LOW);
+      digitalWrite(in3, LOW);
+      digitalWrite(in4, LOW);
+      Serial.println("Car Stoped!!");
   }
 }
 
@@ -134,8 +137,7 @@ void handleWebSocket(void *arg, uint8_t *data, size_t len, AsyncWebSocketClient 
 
   if (strlen(msg) == 1) {
     // لو الرسالة حرف واحد يبقى غالباً أمر حركة للعربية
-    controlCar(String(msg));
-    
+    controlCar(msg[0]);
     return;
   }
 

@@ -8,6 +8,8 @@ from PyQt5.QtCore import Qt, pyqtSignal
 from ui.module.toggleSwitch import AnimatedToggle
 from ui.module.toggleMode import AnimatedModeToggle
 from ui.style.colors import Colors
+from ui.vision.camDetect import CameraFeedPanel
+from ui.utility.logger import logger
 
 class TopBar(QFrame):
     mode_changed = pyqtSignal(str)
@@ -88,8 +90,17 @@ class TopBar(QFrame):
             btn = QLabel(icon)
             btn.setStyleSheet(f"color: rgba(93,216,226,0.6); font-size: 16px; background: transparent;")
             btn.setCursor(Qt.PointingHandCursor)
+            btn.mousePressEvent = lambda e, i=icon: self.button_clicked(i)
             layout.addWidget(btn)
             layout.addSpacing(8)
+    def button_clicked(self, icon):
+        if icon == "⌨":
+            CameraFeedPanel().toggle_freeze()
+            logger.add_log("INFO", "Toggled Camera Freeze ❄️")
+        elif icon == "⚙":
+            print("Settings clicked")
+        elif icon == "?":
+            print("Help clicked")
     
     def _on_power_toggled(self, checked):
         self.power_on = checked

@@ -7,6 +7,7 @@ from PyQt5.QtWidgets import QFrame, QVBoxLayout, QWidget, QLabel, QPushButton
 from ui.style.colors import Colors
 from PyQt5.QtCore import Qt, pyqtSignal
 from ui.utility.logger import logger
+from ui.vision.camDetect import CameraFeedPanel
 
 
 class SideNavBar(QFrame):
@@ -91,6 +92,8 @@ class SideNavBar(QFrame):
             # handler
             def handler(_, n=name, b=btn):
                 self.set_active(b)
+                if n == "Telemetry":
+                    logger.add_log("INFO", "Capturing Telemetry Snapshot 📸")
                 self.navigate.emit(n)
                 logger.add_log("INFO", f"Navigate to {n} 🔥")
 

@@ -55,7 +55,7 @@ class KineticArchitectDashboard(QMainWindow):
         content_layout.setSpacing(20)
 
         self.page_dashboard = content   # اللي انت عامله بالفعل
-        self.page_telemetry = TelemetryPage()
+        self.page_telemetry = TelemetryPage(CameraFeedPanel(self.camnum))
         self.page_manual = ManualControlPage()
         self.page_diagnostics = DiagnosticsPage()
         self.page_logs = LogsPage()
