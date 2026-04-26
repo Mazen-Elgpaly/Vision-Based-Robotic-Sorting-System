@@ -244,6 +244,8 @@ class CameraFeedPanel(QFrame):
         try:
             self.capture = cv2.VideoCapture(self.camera_index, cv2.CAP_DSHOW)
             self.capture.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+            self.capture.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+            self.capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
             if self.capture.isOpened():
                 self.camera_available = True
                 self.camera_status.setStyleSheet("color: #00ff00; font-size: 8px; background: transparent;")
@@ -433,7 +435,15 @@ class CameraFeedPanel(QFrame):
             bytes_per_line = ch * w
 
             qt_image = QImage(rgb_frame.data, w, h, bytes_per_line, QImage.Format_RGB888)
-            self.video_label.setPixmap(QPixmap.fromImage(qt_image))
+            pixmap = QPixmap.fromImage(qt_image)
+
+            self.video_label.setPixmap(
+                pixmap.scaled(
+                    self.video_label.size(),
+                    Qt.KeepAspectRatio,   # يحافظ على النسبة الطبيعية
+                    Qt.SmoothTransformation
+                )
+            )
             
             # إرسال الفريم للإشارات الخارجية
             self.frame_updated.emit(display_frame)
