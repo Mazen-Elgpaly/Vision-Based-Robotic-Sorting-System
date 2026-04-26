@@ -30,21 +30,27 @@ struct ServoData {
   const char *name;
   int current;
   int target;
+  int min;
+  int max;
+  int reset;
 };
 
 ServoData servos[] = {
-  { Servo(), 26, "Base", 90, 90 },
-  { Servo(), 25, "Shoulder", 90, 90 },
-  { Servo(), 33, "Elbow", 90, 90 },
-  { Servo(), 32, "Gripper", 90, 90 }
+  { Servo(), 26, "Base", 90, 90, 0, 180, 90},
+  { Servo(), 25, "Shoulder", 90, 90, 0, 180, 90},
+  { Servo(), 33, "Elbow", 90, 90, 0, 180, 90},
+  { Servo(), 32, "Gripper", 90, 90, 0, 180, 90}
 };
 
+#define SERVO_COUNT 4
+
+// =======================
+// L298N
+// =======================
 const int in1 = 13;
 const int in2 = 12;
 const int in3 = 14;
 const int in4 = 27;
-
-#define SERVO_COUNT 4
 
 // =======================
 // Timing
@@ -62,46 +68,74 @@ const int msgCooldown = 20;
 bool shouldBroadcast = false;
 
 // =======================
-// Helpers
+// Reset Function
 // =======================
-// دالة التحكم في المواتير
-void controlCar(char command) {
-  switch (command) {
-    case 'F':
-      // قدام
-      digitalWrite(in1, HIGH);
-      digitalWrite(in2, LOW);
-      digitalWrite(in3, HIGH);
-      digitalWrite(in4, LOW);
-      Serial.println("Car Farward");
-      break;
-    case 'B':  // ورا
-      digitalWrite(in1, LOW);
-      digitalWrite(in2, HIGH);
-      digitalWrite(in3, LOW);
-      digitalWrite(in4, HIGH);
-      Serial.println("Car Back");
-    case 'L':  // شمال
-      digitalWrite(in1, LOW);
-      digitalWrite(in2, HIGH);
-      digitalWrite(in3, HIGH);
-      digitalWrite(in4, LOW);
-      Serial.println("Car Left");
-    case 'R':  // يمين
-      digitalWrite(in1, HIGH);
-      digitalWrite(in2, LOW);
-      digitalWrite(in3, LOW);
-      digitalWrite(in4, HIGH);
-      Serial.println("Car Right");
-    case 'S':  // وقف
-      digitalWrite(in1, LOW);
-      digitalWrite(in2, LOW);
-      digitalWrite(in3, LOW);
-      digitalWrite(in4, LOW);
-      Serial.println("Car Stoped!!");
+void resetServos() {
+  Serial.println("=== RESET SERVOS ===");
+
+  for (int i = 0; i < SERVO_COUNT; i++) {
+    servos[i].target = servos[i].reset;
+
+    Serial.print(servos[i].name);
+    Serial.print(" -> Reset to ");
+    Serial.println(servos[i].reset);
   }
 }
 
+// =======================
+// Motor Control
+// =======================
+void controlCar(char command) {
+
+  Serial.print("Car Command: ");
+  Serial.println(command);
+
+  switch (command) {
+    case 'F':
+      Serial.println("Forward");
+      digitalWrite(in1, HIGH);
+      digitalWrite(in2, LOW);
+      digitalWrite(in3, HIGH);
+      digitalWrite(in4, LOW);
+      break;
+
+    case 'B':
+      Serial.println("Backward");
+      digitalWrite(in1, LOW);
+      digitalWrite(in2, HIGH);
+      digitalWrite(in3, LOW);
+      digitalWrite(in4, HIGH);
+      break;
+
+    case 'L':
+      Serial.println("Left");
+      digitalWrite(in1, LOW);
+      digitalWrite(in2, HIGH);
+      digitalWrite(in3, HIGH);
+      digitalWrite(in4, LOW);
+      break;
+
+    case 'R':
+      Serial.println("Right");
+      digitalWrite(in1, HIGH);
+      digitalWrite(in2, LOW);
+      digitalWrite(in3, LOW);
+      digitalWrite(in4, HIGH);
+      break;
+
+    case 'S':
+      Serial.println("Stop");
+      digitalWrite(in1, LOW);
+      digitalWrite(in2, LOW);
+      digitalWrite(in3, LOW);
+      digitalWrite(in4, LOW);
+      break;
+  }
+}
+
+// =======================
+// Helpers
+// =======================
 int findServoIndex(const char *name) {
   for (int i = 0; i < SERVO_COUNT; i++) {
     if (strcmp(servos[i].name, name) == 0) return i;
@@ -122,22 +156,31 @@ void buildJSON(char *buffer) {
 // WebSocket Handler
 // =======================
 void handleWebSocket(void *arg, uint8_t *data, size_t len, AsyncWebSocketClient *client) {
-  // 1. Anti-spam
+
   if (millis() - lastMsgTime < msgCooldown) return;
   lastMsgTime = millis();
 
   AwsFrameInfo *info = (AwsFrameInfo *)arg;
   if (!(info->final && info->index == 0 && info->len == len)) return;
 
-  // 2. انقل الداتا لمكان آمن بدل ما تعدل في الـ pointer الأصلي
-  char msg[64];  // حجم كافي للرسايل بتاعتك
+  char msg[64];
   size_t safeLen = (len < sizeof(msg) - 1) ? len : sizeof(msg) - 1;
   memcpy(msg, data, safeLen);
-  msg[safeLen] = '\0';  // قفل السلسلة هنا بأمان
+  msg[safeLen] = '\0';
 
+  // =========================
+  // CAR CONTROL
+  // =========================
   if (strlen(msg) == 1) {
-    // لو الرسالة حرف واحد يبقى غالباً أمر حركة للعربية
     controlCar(msg[0]);
+    return;
+  }
+
+  // =========================
+  // RESET
+  // =========================
+  if (strcmp(msg, "RESET") == 0) {
+    resetServos();
     return;
   }
 
@@ -145,20 +188,25 @@ void handleWebSocket(void *arg, uint8_t *data, size_t len, AsyncWebSocketClient 
   // GET ALL
   // =========================
   if (strcmp(msg, "GET") == 0) {
+    Serial.println("GET ALL Servos");
+
     char buffer[128];
     buildJSON(buffer);
     client->text(buffer);
-    Serial.println("All Servo's info:");
-    Serial.println(buffer);
     return;
   }
 
   // =========================
-  // GET ONE (مثلاً: GET,Base)
+  // GET ONE
   // =========================
   if (strncmp(msg, "GET,", 4) == 0) {
     char *name = msg + 4;
+
+    Serial.print("GET Servo: ");
+    Serial.println(name);
+
     int idx = findServoIndex(name);
+
     if (idx != -1) {
       char buffer[32];
       snprintf(buffer, sizeof(buffer), "%s:%d", servos[idx].name, servos[idx].current);
@@ -168,17 +216,28 @@ void handleWebSocket(void *arg, uint8_t *data, size_t len, AsyncWebSocketClient 
   }
 
   // =========================
-  // SET (مثلاً: Base,120)
+  // SET SERVO
   // =========================
   char *comma = strchr(msg, ',');
   if (comma != NULL) {
     *comma = '\0';
+
     char *name = msg;
     int value = atoi(comma + 1);
 
     int idx = findServoIndex(name);
+
     if (idx != -1) {
-      servos[idx].target = constrain(value, 0, 180);
+      int newTarget = constrain(value, servos[idx].min, servos[idx].max);
+
+      Serial.print("Servo Move -> ");
+      Serial.print(name);
+      Serial.print(" : ");
+      Serial.print(servos[idx].current);
+      Serial.print(" -> ");
+      Serial.println(newTarget);
+
+      servos[idx].target = newTarget;
     }
   }
 }
@@ -213,33 +272,27 @@ void setup() {
   pinMode(in3, OUTPUT);
   pinMode(in4, OUTPUT);
 
-  // مهم للاستقرار
   esp_netif_init();
 
-  // LittleFS
   if (!LittleFS.begin(true)) {
     Serial.println("LittleFS Error");
     return;
   }
 
-  // WiFi AP
   WiFi.softAP(ssid, password);
   WiFi.softAPConfig(local_IP, gateway, subnet);
 
   Serial.print("IP: ");
   Serial.println(WiFi.softAPIP());
 
-  // Servos
   for (int i = 0; i < SERVO_COUNT; i++) {
     servos[i].servo.attach(servos[i].pin);
     servos[i].servo.write(servos[i].current);
   }
 
-  // WebSocket
   ws.onEvent(onEvent);
   server.addHandler(&ws);
 
-  // Serve HTML
   server.serveStatic("/", LittleFS, "/").setDefaultFile("index.html");
 
   DefaultHeaders::Instance().addHeader("Access-Control-Allow-Origin", "*");
@@ -252,7 +305,7 @@ void setup() {
 // =======================
 void loop() {
 
-  // 🟢 Smooth Movement
+  // Smooth Servo Movement
   if (millis() - lastMove > stepDelay) {
     lastMove = millis();
 
@@ -268,13 +321,12 @@ void loop() {
     }
   }
 
-  // 📡 Broadcast Flag
+  // Broadcast
   if (millis() - lastBroadcast > broadcastInterval) {
     lastBroadcast = millis();
     shouldBroadcast = true;
   }
 
-  // 📡 Safe Broadcast
   if (shouldBroadcast) {
     shouldBroadcast = false;
 

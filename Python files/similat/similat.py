@@ -1,172 +1,144 @@
-from flask import Flask, render_template
-from flask_sock import Sock
-import time
+import asyncio
+import json
+from aiohttp import web
 
-app = Flask(__name__)
-sock = Sock(app)
-
-# ======================
-# Servo Simulation
-# ======================
+# =======================
+# Servo Struct
+# =======================
 class Servo:
-    def __init__(self, name):
+    def __init__(self, name, reset=90, min_val=0, max_val=180):
         self.name = name
-        self.position = 90
+        self.current = reset
+        self.target = reset
+        self.min = min_val
+        self.max = max_val
+        self.reset = reset
 
-    def write(self, value):
-        self.position = value
-        print(f"{self.name} -> {self.position}")
+servos = {
+    "Base": Servo("Base"),
+    "Shoulder": Servo("Shoulder"),
+    "Elbow": Servo("Elbow"),
+    "Gripper": Servo("Gripper"),
+}
 
-    def read(self):
-        return self.position
+# =======================
+# Timing
+# =======================
+STEP_DELAY = 0.02
+STEP_SIZE = 1
 
+clients = set()
 
-servoPins = [
-    Servo("Base"),
-    Servo("Shoulder"),
-    Servo("Elbow"),
-    Servo("Gripper")
-]
+# =======================
+# Helpers
+# =======================
+def build_json():
+    return json.dumps({name: s.current for name, s in servos.items()})
 
-recordedSteps = []
-recordSteps = False
-playRecordedSteps = False
-previousTime = time.time()
+def reset_servos():
+    print("=== RESET SERVOS ===")
+    for s in servos.values():
+        s.target = s.reset
+        print(f"{s.name} -> Reset to {s.reset}")
 
-clients = []  # كل الـ clients المتصلة
+def control_car(cmd):
+    print(f"Car Command: {cmd}")
 
+# =======================
+# HTTP: serve index.html
+# =======================
+async def index(request):
+    return web.FileResponse("./templates/index.html")
 
-# ======================
-# Routes
-# ======================
-@app.route("/")
-def index():
-    return render_template("index.html")
+# =======================
+# WebSocket Handler
+# =======================
+async def websocket_handler(request):
+    ws = web.WebSocketResponse()
+    await ws.prepare(request)
 
-
-# ======================
-# WebSocket (نفس ESP)
-# ======================
-@sock.route('/RobotArmInput')
-def robot_arm(ws):
-    global recordSteps, playRecordedSteps, previousTime
-
-    clients.append(ws)
     print("Client connected")
+    clients.add(ws)
 
-    # send initial state
-    sendCurrentState(ws)
+    await ws.send_str(build_json())
 
+    async for msg in ws:
+        if msg.type == web.WSMsgType.TEXT:
+            message = msg.data
+            print(f"\nReceived: {message}")
+
+            # CAR
+            if len(message) == 1:
+                control_car(message)
+                continue
+
+            # RESET
+            if message == "RESET":
+                reset_servos()
+                continue
+
+            # GET ALL
+            if message == "GET":
+                await ws.send_str(build_json())
+                continue
+
+            # GET ONE
+            if message.startswith("GET,"):
+                name = message.split(",")[1]
+                if name in servos:
+                    await ws.send_str(f"{name}:{servos[name].current}")
+                continue
+
+            # SET SERVO
+            if "," in message:
+                name, value = message.split(",")
+                if name in servos:
+                    value = int(value)
+                    s = servos[name]
+
+                    new_target = max(s.min, min(s.max, value))
+
+                    print(f"Servo Move -> {name}: {s.current} -> {new_target}")
+                    s.target = new_target
+
+    clients.remove(ws)
+    print("Client disconnected")
+    return ws
+
+# =======================
+# Servo Simulation Loop
+# =======================
+async def servo_loop():
     while True:
-        data = ws.receive()
-        if data is None:
-            break
+        for s in servos.values():
+            if s.current < s.target:
+                s.current += STEP_SIZE
+            elif s.current > s.target:
+                s.current -= STEP_SIZE
 
-        key, value = data.split(",")
-        value = int(value)
+        await asyncio.sleep(STEP_DELAY)
 
-        print(f"{key} -> {value}")
+# =======================
+# Broadcast Loop
+# =======================
+async def broadcast_loop():
+    while True:
+        if clients:
+            data = build_json()
+            await asyncio.gather(*[ws.send_str(data) for ws in clients])
+        await asyncio.sleep(0.3)
 
-        if key == "Record":
-            recordSteps = bool(value)
-            if recordSteps:
-                recordedSteps.clear()
-                previousTime = time.time()
+# =======================
+# Main
+# =======================
+app = web.Application()
+app.router.add_get("/", index)
+app.router.add_get("/ws", websocket_handler)
 
-            broadcast(f"Record,{ 'ON' if recordSteps else 'OFF' }")
+app.router.add_static("/templates/", path="./templates", name="templates")
 
-        elif key == "Play":
-            playRecordedSteps = bool(value)
-            broadcast(f"Play,{ 'ON' if playRecordedSteps else 'OFF' }")
+loop = asyncio.get_event_loop()
+loop.create_task(servo_loop())
+loop.create_task(broadcast_loop())
 
-            if playRecordedSteps:
-                playRecordedRobotArmSteps()
-
-        elif key in ["Base", "Shoulder", "Elbow", "Gripper"]:
-            index = ["Base", "Shoulder", "Elbow", "Gripper"].index(key)
-            writeServoValues(index, value)
-
-
-# ======================
-# Core Logic
-# ======================
-def broadcast(msg):
-    for c in clients:
-        try:
-            c.send(msg)
-        except:
-            pass
-
-
-def sendCurrentState(ws):
-    for s in servoPins:
-        ws.send(f"{s.name},{s.read()}")
-
-    ws.send(f"Record,{ 'ON' if recordSteps else 'OFF' }")
-    ws.send(f"Play,{ 'ON' if playRecordedSteps else 'OFF' }")
-
-
-def writeServoValues(index, value):
-    global previousTime
-
-    if recordSteps:
-        if len(recordedSteps) == 0:
-            for i, s in enumerate(servoPins):
-                recordedSteps.append((i, s.read(), 0))
-
-        currentTime = time.time()
-
-        recordedSteps.append((
-            index,
-            value,
-            currentTime - previousTime
-        ))
-
-        previousTime = currentTime
-
-    servoPins[index].write(value)
-    broadcast(f"{servoPins[index].name},{value}")
-
-
-def playRecordedRobotArmSteps():
-    global playRecordedSteps
-
-    if not recordedSteps:
-        return
-
-    print("▶ Playing...")
-
-    # initial
-    for i in range(4):
-        idx, val, _ = recordedSteps[i]
-        servo = servoPins[idx]
-
-        current = servo.read()
-        while current != val and playRecordedSteps:
-            current += -1 if current > val else 1
-            servo.write(current)
-            broadcast(f"{servo.name},{current}")
-            time.sleep(0.05)
-
-    time.sleep(2)
-
-    # rest
-    for idx, val, delay in recordedSteps[4:]:
-        if not playRecordedSteps:
-            break
-
-        time.sleep(delay)
-        servoPins[idx].write(val)
-        broadcast(f"{servoPins[idx].name},{val}")
-
-    playRecordedSteps = False
-    broadcast("Play,OFF")
-
-    print("✔ Done")
-
-
-# ======================
-# Run
-# ======================
-if __name__ == "__main__":
-    app.run(debug=True)
+web.run_app(app, host="0.0.0.0", port=80)
