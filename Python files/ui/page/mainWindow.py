@@ -3,6 +3,7 @@
 # ─────────────────────────────────────────────
 from PyQt5.QtWidgets import QMainWindow, QStackedWidget, QWidget, QHBoxLayout, QVBoxLayout
 from PyQt5.QtCore import Qt
+import psutil
 from ui.utility.livethread import LiveDataThread
 from ui.vision.camDetect import CameraFeedPanel
 from ui.page.sidebar import SideNavBar
@@ -54,9 +55,11 @@ class KineticArchitectDashboard(QMainWindow):
         content_layout = QHBoxLayout(content)
         content_layout.setContentsMargins(20, 20, 20, 20)
         content_layout.setSpacing(20)
+        
+        self.camera_panel = CameraFeedPanel(self.camnum)
 
         self.page_dashboard = content   # اللي انت عامله بالفعل
-        self.page_telemetry = TelemetryPage(CameraFeedPanel(self.camnum))
+        self.page_telemetry = TelemetryPage(self.camera_panel)
         self.page_manual = ManualControlPage()
         self.page_diagnostics = DiagnosticsPage()
         self.page_logs = LogsPage()
@@ -84,16 +87,17 @@ class KineticArchitectDashboard(QMainWindow):
         left_col = QVBoxLayout()
         left_col.setSpacing(16)
 
-        self.camera_panel = CameraFeedPanel(self.camnum)
         left_col.addWidget(self.camera_panel, stretch=3)
 
         sensor_row = QHBoxLayout()
         sensor_row.setSpacing(16)
-        self.temp_card    = MetricCard("🌡", "34.2", "°C", "Core Temperature", Colors.TERTIARY)
-        self.battery_card = MetricCard("⚡", "88",  "%",  "Energy Reserve",   Colors.PRIMARY, border_bottom=True)
+        self.temp_card    = MetricCard("🌡", f"{psutil.cpu_percent(interval=1)}", "°C", "Core Temperature", Colors.TERTIARY)
+        self.ram_usage_card = MetricCard("💾", f"{psutil.virtual_memory().percent:.1f}", "%", "RAM Usage", Colors.SECONDARY)
+        self.battery_card = MetricCard("⚡", f"{psutil.sensors_battery().percent:.1f}" if psutil.sensors_battery() else "N/A",  "%",  "Energy Reserve",   Colors.PRIMARY, border_bottom=True)
         self.latency_card = LatencyCard()
 
         sensor_row.addWidget(self.temp_card)
+        sensor_row.addWidget(self.ram_usage_card)
         sensor_row.addWidget(self.battery_card)
         sensor_row.addWidget(self.latency_card, stretch=2)
         left_col.addLayout(sensor_row)
@@ -102,7 +106,7 @@ class KineticArchitectDashboard(QMainWindow):
 
         right_col = QVBoxLayout()
         right_col.setSpacing(16)
-        self.logs_panel = SystemLogsPanel()
+        self.logs_panel = SystemLogsPanel(self.camera_panel.redcount, self.camera_panel.bluecount, self.camera_panel.greencount, self.camera_panel.graycount)
         self.env_card = EnvSyncCard("../images/robot.jpg", base_width=250)
         right_col.addWidget(self.logs_panel, stretch=1)
         right_col.addWidget(self.env_card, alignment=Qt.AlignmentFlag.AlignCenter)
@@ -130,6 +134,7 @@ class KineticArchitectDashboard(QMainWindow):
         self.camera_panel.update_data(data)
         self.temp_card.update_value(data["temp"])
         self.battery_card.update_value(data["battery"])
+        self.ram_usage_card.update_value(data["ram_usage"])
         self.latency_card.update_value(data["latency"])
     
     def _on_wireless_changed(self, is_wireless):

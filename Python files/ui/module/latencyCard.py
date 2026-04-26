@@ -30,7 +30,8 @@ class LatencyCard(QFrame):
         layout.addStretch()
 
         self.sparkline = SparklineWidget(self.history)
-        self.sparkline.setFixedSize(60, 32)
+        self.sparkline.setFixedSize(750, 32)
+        self.sparkline.setStyleSheet(f"background: transparent;")
         layout.addWidget(self.sparkline, 0, Qt.AlignVCenter)
 
     def update_value(self, latency):

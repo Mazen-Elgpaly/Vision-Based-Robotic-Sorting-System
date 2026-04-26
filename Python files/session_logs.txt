@@ -1,5 +1,10 @@
-Timestamp       | Tag     | Message
+Timestamp	| 	Tag		| Message
 --------------------------------------------------
-19:48:17.43 | ACTION | Stable State Achieved ✅
-19:48:15.39 | ACTION | Motion Detected! 🚀
-19:48:14.60 | INFO | Navigate to Logs 🔥
+00:02:18.49	| INFO    	| Detected 0 red, 0 blue, 0 green, 0 box in Frame!
+00:02:17.48	| INFO    	| Detected 0 red, 0 blue, 0 green, 0 box in Frame!
+00:02:15.92	| INFO    	| Detected 5 blue in Frame!
+00:02:15.33	| INFO    	| Detected 0 red, 2 blue, 0 green, 0 box in Frame!
+00:02:14.46	| INFO    	| Detected 4 blue in Frame!
+00:02:14.04	| INFO    	| Detected 1 blue in Frame!
+00:02:13.83	| INFO    	| Detected 3 blue in Frame!
+00:02:13.73	| INFO    	| Detected 2 blue in Frame!

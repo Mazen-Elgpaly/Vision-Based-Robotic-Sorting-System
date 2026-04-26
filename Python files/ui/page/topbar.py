@@ -59,6 +59,7 @@ class TopBar(QFrame):
         toggle_layout.addWidget(power_lbl)
         
         self.power_toggle = AnimatedToggle()
+        self.power_toggle.setChecked(self.power_on)
         self.power_toggle.toggled.connect(self._on_power_toggled)
         toggle_layout.addWidget(self.power_toggle)
         

@@ -81,6 +81,24 @@ class SideNavBar(QFrame):
 
         for name, icon, active in nav_items:
             btn = QPushButton(f"{icon}\n{name.upper()}")
+            btn.setStyleSheet(f"""
+                QPushButton {{
+                    color: {Colors.ON_SURFACE};
+                    background: transparent;
+                    border: none;
+                    font-size: 11px;
+                    font-weight: 700;
+                    letter-spacing: 1px;
+                    text-align: center;
+                    padding: 0;
+                    margin: 0;
+                }}
+                QPushButton#nav_btn_active {{
+                    color: {Colors.PRIMARY};
+                    background: {Colors.SURFACE_CONT};
+                    border-radius: 10px;
+                }}
+            """)
             btn.setObjectName("nav_btn_active" if active else "nav_btn")
             btn.setFixedHeight(70)
             btn.setFixedWidth(80)

@@ -7,18 +7,9 @@ import os
 from PyQt5.QtCore import QTimer, Qt, pyqtSignal, QUrl
 from PyQt5.QtGui import QImage, QPixmap
 from PyQt5.QtWidgets import QFrame, QVBoxLayout, QHBoxLayout, QWidget, QLabel, QGridLayout, QProgressBar, QSizePolicy
-
-from PyQt5.QtWidgets import (
-    QWidget, QHBoxLayout, QVBoxLayout,
-    QLabel, QFrame, QGridLayout,
-    QSizePolicy, QProgressBar
-)
-from PyQt5.QtCore import (
-    Qt, QTimer, pyqtSignal
-)
-from PyQt5.QtGui import QPixmap
 from PyQt5.QtWebEngineWidgets import QWebEngineView
 from ui.utility.logger import logger
+# from ui.utility.logspanel import SystemLogsPanel
 
 
 boxes = []
@@ -58,6 +49,14 @@ class CameraFeedPanel(QFrame):
         
         self.fail_count = 0
         self.max_fail = 5
+        
+        self.redcount = 0
+        self.bluecount = 0
+        self.greencount = 0
+        self.graycount = 0
+        
+    def refresh_logs(self):
+        logger.add_log("INFO", f"Detected {self.redcount} red, {self.bluecount} blue, {self.greencount} green, {self.graycount} box in Frame!")
 
     def init_ui(self):
         self.setObjectName("card")
@@ -205,6 +204,10 @@ class CameraFeedPanel(QFrame):
         self.update_timer = QTimer()
         self.update_timer.timeout.connect(self.update_frame)
         self.update_timer.start(50)
+        
+        self.refresh_logs_data = QTimer()
+        self.refresh_logs_data.timeout.connect(self.refresh_logs)
+        self.refresh_logs_data.start(7500)
 
     def count_objects(self, mask, color, frame_to_draw):
         mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
@@ -335,11 +338,11 @@ class CameraFeedPanel(QFrame):
 
             if not ret:
                 self.fail_count += 1
-                print(f"Frame failed ({self.fail_count})")
+                # print(f"Frame failed ({self.fail_count})")
                 if self.is_frozen:
                     return
                 if self.fail_count >= self.max_fail:
-                    print("Reinitializing camera...")
+                    # print("Reinitializing camera...")
                     self.release_camera()
                     self.init_camera()
                     self.fail_count = 0
@@ -411,13 +414,14 @@ class CameraFeedPanel(QFrame):
                 gray_mask = cv2.inRange(hsv, self.lower_gray, self.upper_gray)
 
                 # عد الكائنات (Object Counting)
-                redcount = self.count_objects(red_mask, "red", display_frame)
-                bluecount = self.count_objects(blue_mask, "blue", display_frame)
-                greencount = self.count_objects(green_mask, "green", display_frame)
-                graycount = self.count_objects(gray_mask, "box", display_frame)
+                self.redcount = self.count_objects(red_mask, "red", display_frame)
+                self.bluecount = self.count_objects(blue_mask, "blue", display_frame)
+                self.greencount = self.count_objects(green_mask, "green", display_frame)
+                self.graycount = self.count_objects(gray_mask, "box", display_frame)
+                
 
                 # تسجيل الـ Logs
-                for color, count in [("red", redcount), ("blue", bluecount), ("green", greencount), ("box", graycount)]:
+                for color, count in [("red", self.redcount), ("blue", self.bluecount), ("green", self.greencount), ("box", self.graycount)]:
                     if count > 0:
                         log_text = f"Detected {count} {color} in Frame!"
                         if log_text not in [log['text'] for log in logger.get_logs()]:
@@ -433,19 +437,10 @@ class CameraFeedPanel(QFrame):
             
             # إرسال الفريم للإشارات الخارجية
             self.frame_updated.emit(display_frame)
-
-            # التعامل مع مفاتيح الكيبورد
-            key = cv2.waitKey(1) & 0xFF
-            if key == ord('f'):
-                self.toggle_freeze()
-            elif key == ord('s'):
-                self.snapshot_taken.emit(display_frame)
-            elif key == ord('q'):
-                self.release_camera()
+            # self.snapshot_taken.emit(display_frame)
                 
         except Exception as e:
             print(f"Error updating frame: {e}")
-            
                  
     def resizeEvent(self, event):
         super().resizeEvent(event)

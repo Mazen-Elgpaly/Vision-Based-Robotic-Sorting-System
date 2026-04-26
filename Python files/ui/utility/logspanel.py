@@ -5,21 +5,25 @@ import os
 import random
 from datetime import datetime
 from PyQt5.QtCore import QTimer, Qt
-from PyQt5.QtWidgets import QFrame, QVBoxLayout, QHBoxLayout, QWidget, QLabel, QSizePolicy
 from PyQt5.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QLabel, QPushButton, QScrollArea, QFrame, QSizePolicy
-from PyQt5.QtCore import Qt, pyqtSignal
 from ui.style.colors import Colors
 from ui.utility.logs import LogEntry
 from ui.utility.logger import logger
+# from ui.vision.camDetect import CameraFeedPanel
 
 
 class SystemLogsPanel(QFrame):
     
-    def __init__(self):
+    def __init__(self, redcount=0, bluecount=0, greencount=0, graycount=0):
         super().__init__()
-        logger.log_signal.connect(self.sendLog)
+        logger.log_signal.connect(self.sendLog) # ربط إشارة اللوج بالواجهة
         self.setObjectName("card")
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
+        
+        self.redcount = redcount
+        self.bluecount = bluecount
+        self.greencount = greencount
+        self.graycount = graycount
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -38,6 +42,10 @@ class SystemLogsPanel(QFrame):
         header_layout.setContentsMargins(16, 0, 16, 0)
 
         h_icon = QLabel("≡")
+        h_icon.setFixedWidth(16)
+        h_icon.setAlignment(Qt.AlignCenter)
+        h_icon.setCursor(Qt.PointingHandCursor)
+        h_icon.mousePressEvent = lambda e: self.clear_logs()
         h_icon.setStyleSheet(f"color: {Colors.PRIMARY}; font-size: 14px; background: transparent;")
         h_title = QLabel("SYSTEM_LOGS")
         h_title.setStyleSheet(f"color: {Colors.ON_SURFACE}; font-size: 10px; font-weight: 700; letter-spacing: 3px; background: transparent;")
@@ -96,37 +104,48 @@ class SystemLogsPanel(QFrame):
         """)
         footer_layout = QHBoxLayout(footer)
         footer_layout.setContentsMargins(16, 0, 16, 0)
-        export_btn = QPushButton("↗  EXPORT SESSION DATA")
-        export_btn.setCursor(Qt.PointingHandCursor)
-        export_btn.clicked.connect(self.export_logs)
-        export_btn.setStyleSheet(f"""
-            QPushButton {{
-                background: transparent;
-                color: rgba(93,216,226,0.6);
-                font-size: 9px;
-                letter-spacing: 2px;
-                border: none;
-                padding: 4px 8px;
-            }}
-            QPushButton:hover {{
-                color: {Colors.PRIMARY};
-            }}
-        """)
-        footer_layout.addWidget(export_btn, 0, Qt.AlignCenter)
+        footer_cols = QHBoxLayout()
+        footer_cols.setContentsMargins(0, 0, 0, 0)
+        footer_cols.setSpacing(8)
+        footer_layout.addLayout(footer_cols)
+        footer_layout.setAlignment(Qt.AlignCenter)
+        # footer_layout.addWidget(export_btn, 0, Qt.AlignCenter)
+        export_btn = self.buildButton("↗  EXPORT SESSION DATA", self.export_logs)
+        clear_btn = self.buildButton("🗑  Clear LOGS", self.clear_logs)
+        refresh_btn = self.buildButton("⟳  Refresh COUNTS", self.refresh_logs)
+        footer_cols.addWidget(export_btn, 0, Qt.AlignCenter)
+        footer_cols.addWidget(clear_btn, 0, Qt.AlignCenter)
+        footer_cols.addWidget(refresh_btn, 0, Qt.AlignCenter)
+        footer_cols.addStretch()
+        footer_layout.addStretch()
+        
         layout.addWidget(footer)
-
-        # self.log_timer = QTimer()
-        # self.log_timer.timeout.connect(self._add_random_log)
-        # self.log_timer.start(3000)
+        
         self.scroll_widget = scroll_widget
+        
+    def buildButton(self, text, callback):
+        btn = QPushButton(text)
+        btn.setCursor(Qt.PointingHandCursor)
+        btn.clicked.connect(callback)
+        btn.setStyleSheet(f"""QPushButton {{background: transparent;color: rgba(93,216,226,0.6);font-size: 9px;letter-spacing: 2px;border: none;padding: 4px 8px;}}QPushButton:hover {{color: {Colors.PRIMARY};}}""")
+        return btn
+        
+    def refresh_logs(self):
+        logger.add_log("INFO", f"Detected {self.redcount} red, {self.bluecount} blue, {self.greencount} green, {self.graycount} box in Frame!")
+        self._render_logs()
         
     def export_logs(self):
         with open("session_logs.txt", "w", encoding="utf-8") as f:
-            f.write("Timestamp       | Tag     | Message\n")
+            f.write("Timestamp\t| \tTag\t\t| Message\n")
             f.write("-" * 50 + "\n")
-            f.write("\n".join([f"{ts} | {tag} | {msg}" for ts, tag, color, msg, op in self.logs]))
+            f.write("\n".join([f"{ts}\t| {tag}    \t| {msg}" for ts, tag, color, msg, op in self.logs]))
             f.write("\n")
         os.system("notepad session_logs.txt")
+        
+    def clear_logs(self):
+        self.logs = []
+        self._render_logs()
+        logger.clear_logs()    
 
     def _render_logs(self):
         while self.log_layout.count():
